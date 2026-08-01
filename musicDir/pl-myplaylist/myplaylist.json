@@ -1,0 +1,30 @@
+{
+    "playlist_name": "pl-synthwave",
+    "version": "1.0",
+    "songs": [
+        {
+            "id": "dQw4w9WgXcQ",
+            "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            "title": "Never Gonna Give You Up",
+            "artist": "Rick Astley",
+            "composer": "Stock Aitken Waterman",
+            "vocalist_vsynth": "-",
+            "language": "English",
+            "release_date": "1987-07-27",
+            "download_video": false,
+            "status": "active"
+        },
+        {
+            "id": "Tjp8cj8Vzyo",
+            "url": "https://www.youtube.com/watch?v=Tjp8cj8Vzyo",
+            "title": "Davy Jones",
+            "artist": "Hans Zimmer",
+            "composer": "Hans Zimmer",
+            "vocalist_vsynth": "-",
+            "language": "-",
+            "release_date": "2006-07-04",
+            "download_video": false,
+            "status": "active"
+        }
+    ]
+}
