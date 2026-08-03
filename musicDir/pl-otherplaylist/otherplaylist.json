@@ -1,0 +1,29 @@
+{
+    "playlist_name": "pl-synthwave",
+    "songs": [
+        {
+            "id": "SLS9tUa2GXI",
+            "url": "https://music.youtube.com/watch?v=SLS9tUa2GXI",
+            "title": "Featherfall",
+            "artist": "-",
+            "composer": "-",
+            "vocalist_vsynth": "-",
+            "language": "-",
+            "release_date": "-",
+            "download_video": false,
+            "status": "active"
+        },
+        {
+            "id": "CcAV71mXg_8",
+            "url": "https://music.youtube.com/watch?v=CcAV71mXg_8",
+            "title": "Watcher",
+            "artist": "-",
+            "composer": "-",
+            "vocalist_vsynth": "-",
+            "language": "-",
+            "release_date": "-",
+            "download_video": false,
+            "status": "active"
+        }
+    ]
+}
