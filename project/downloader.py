@@ -1,6 +1,7 @@
 import yt_dlp
-import json
 import config
+import urllib.request
+from pathlib import Path
 from datetime import datetime
 
 def extract_data_from_url(url: str) -> dict:
@@ -22,6 +23,63 @@ def extract_data_from_url(url: str) -> dict:
         info.pop(type, None)
     
     return info
+
+def download_thumbnail(thumbnail_url: str, save_path: Path) -> bool:
+    """Downloads thumbnail image directly from its web URL."""
+    if not thumbnail_url:
+        return False
+        
+    try:
+        # Download image file
+        urllib.request.urlretrieve(thumbnail_url, save_path)
+        return save_path.exists()
+    except Exception as e:
+        print(f"Failed to download thumbnail: {e}")
+        return False
+
+def get_ytdlp_options(target_path: Path, is_video: bool = False, hook=None) -> dict:
+    """Builds clean yt-dlp configuration options."""
+    
+    # Base template (strip file extension from outtmpl because yt-dlp appends it)
+    out_template = str(target_path.with_suffix(''))
+
+    if is_video:
+        return {
+            'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+            'merge_output_format': 'mp4',
+            'outtmpl': f"{out_template}.%(ext)s",
+            'noplaylist': True,
+            'quiet': True,
+            'no_warnings': True,
+            'progress_hooks': [hook] if hook else [],
+        }
+    else:
+        return {
+            'format': 'bestaudio[ext=m4a]/bestaudio/best',
+            'outtmpl': f"{out_template}.%(ext)s",
+            'noplaylist': True,
+            'postprocessors': [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'm4a',
+                'preferredquality': '192',
+            }],
+            'quiet': True,
+            'no_warnings': True,
+            'progress_hooks': [hook] if hook else [],
+        }
+
+
+def download_media(url: str, target_path: Path, is_video: bool = False, hook=None) -> bool:
+    """Downloads either audio (.m4a) or video (.mp4) for a given URL."""
+    opts = get_ytdlp_options(target_path, is_video=is_video, hook=hook)
+    
+    try:
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            ydl.download([url])
+            return True
+    except Exception as e:
+        print(f"Download failed for {url}: {e}")
+        return False
 
 def get_iso_code(lang_input: str) -> str:
     # If the input itself is null or empty, return "-" immediately
@@ -60,3 +118,6 @@ def parse_raw_data(info: dict) -> dict:
         "publish_date": get_publish_date(info),
         "status": "active"
     }
+
+download_thumbnail("https://i.ytimg.com/vi/dQw4w9WgXcQ/maxresdefault.jpg", Path("C:/Users/ivank/OneDrive/Desktop/My Code/Projects/Pl-dlp - 2/musicDir/pl-myplaylist/music/thumbnail.jpg"))
+download_media("https://www.youtube.com/watch?v=dQw4w9WgXcQ", Path("C:/Users/ivank/OneDrive/Desktop/My Code/Projects/Pl-dlp - 2/musicDir/pl-myplaylist/music/song.mp4"))

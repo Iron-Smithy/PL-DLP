@@ -3,7 +3,6 @@ import json
 from pathlib import Path
 import shutil
 import tempfile
-import time
 from datetime import datetime
 
 def find_playlist_directories(base_music_dir: Path) -> list[Path]:
@@ -33,7 +32,7 @@ def separate_json_manifest(playlist_directories: list[Path]) -> list[Path]:
            manifests.append(json_path)
     return manifests
 
-def backup_manifests(manifests, backup_folder_path):
+def backup_manifests(manifest_paths: list[Path], backup_folder_path: Path):
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     output_zip_path = backup_folder_path / timestamp
 
@@ -42,7 +41,7 @@ def backup_manifests(manifests, backup_folder_path):
         temp_dir_path = Path(temp_dir)
         
         # Gather and copy files into the temporary directory
-        for src_path in manifests:
+        for src_path in manifest_paths:
             if src_path.exists():
                 # Using src.name ensures the file keeps its original name in the ZIP
                 dest = temp_dir_path / src_path.name
