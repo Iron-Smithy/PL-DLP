@@ -53,18 +53,3 @@ def write_audio_thumbnail(audio_path: Path, cover_jpg_path: Path, delete_thumbna
 
     if delete_thumbnail and cover_jpg_path and cover_jpg_path.exists():
         cover_jpg_path.unlink()
-
-audio = Path("C:/Users/ivank/OneDrive/Desktop/My Code/Projects/Pl-dlp - 2/musicDir/pl-myplaylist/music/song.m4a")
-data = {
-    "id": "dQw4w9WgXcQ",
-    "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-    "title": "Never Gonna Give You Up",
-    "artist": "Rick Astley",
-    "composer": "Stock Aitken Waterman",
-    "vocalist_vsynth": "-",
-    "language": "English",
-    "release_date": "1987-07-27",
-    "download_video": False,
-    "status": "active"
-}
-write_audio_metadata(audio, data)

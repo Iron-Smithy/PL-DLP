@@ -75,6 +75,8 @@ YOUTUBE_ISO_MAP = {
     "ja": "jpn"        # Japanese
 }
 
+AUDIO_EXT = ".m4a"
+
 PROGRAM_ROOT = Path("C:/Users/ivank/OneDrive/Desktop/My Code/Projects/Pl-dlp - 2/project")
 MUSIC_ROOT = Path("C:/Users/ivank/OneDrive/Desktop/My Code/Projects/Pl-dlp - 2/musicDir")
 

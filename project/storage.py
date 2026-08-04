@@ -4,6 +4,7 @@ from pathlib import Path
 import shutil
 import tempfile
 from datetime import datetime
+from typing import Optional, Union
 
 def find_playlist_directories(base_music_dir: Path) -> list[Path]:
     """
@@ -19,7 +20,56 @@ def find_playlist_directories(base_music_dir: Path) -> list[Path]:
     
     return playlist_directories
 
-def separate_json_manifest(playlist_directories: list[Path]) -> list[Path]:
+def find_playlist_directory(base_music_dir: Path, playlist_name: str, create_if_missing: bool = False) -> Optional[Path]:
+    """
+    Finds a specific playlist folder, ensuring it has the 'pl-' prefix.
+    Can optionally create the folder if it does not exist.
+    """
+    if not base_music_dir.exists():
+        if create_if_missing:
+            base_music_dir.mkdir(parents=True, exist_ok=True)
+        else:
+            return None
+
+    # Normalizes the name to ensure it starts with 'pl-'
+    if not playlist_name.startswith("pl-"):
+        target_name = f"pl-{playlist_name}"
+    else:
+        target_name = playlist_name
+
+    playlist_path = base_music_dir / target_name
+
+    # Handles the folder if it exists
+    if playlist_path.is_dir():
+        return playlist_path
+
+    # Handles the folder if it is missing
+    if create_if_missing:
+        playlist_path.mkdir(exist_ok=True)
+        return playlist_path
+        
+    return None
+
+def separate_music_paths(playlist_directories: Union[Path, list[Path]]) -> list[list[Path]]:
+    """Filters out music paths from one or more directory paths."""
+    
+    if isinstance(playlist_directories, Path):
+        playlist_directories = [playlist_directories]
+        
+    playlists = []
+    for playlist_dir in playlist_directories:
+        music_dir = playlist_dir / "music"
+        
+        if not music_dir.exists():
+            playlists.append([])
+            continue
+            
+        song_paths = [path for path in music_dir.glob("*") if path.is_file()]
+        playlists.append(song_paths)
+        
+    return playlists
+
+def separate_json_manifest_paths(playlist_directories: list[Path]) -> list[Path]:
     """
     Filters out json manifest paths
     """

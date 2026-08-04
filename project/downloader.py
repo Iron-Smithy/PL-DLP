@@ -118,6 +118,3 @@ def parse_raw_data(info: dict) -> dict:
         "publish_date": get_publish_date(info),
         "status": "active"
     }
-
-download_thumbnail("https://i.ytimg.com/vi/dQw4w9WgXcQ/maxresdefault.jpg", Path("C:/Users/ivank/OneDrive/Desktop/My Code/Projects/Pl-dlp - 2/musicDir/pl-myplaylist/music/thumbnail.jpg"))
-download_media("https://www.youtube.com/watch?v=dQw4w9WgXcQ", Path("C:/Users/ivank/OneDrive/Desktop/My Code/Projects/Pl-dlp - 2/musicDir/pl-myplaylist/music/song.mp4"))
