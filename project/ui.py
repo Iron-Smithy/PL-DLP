@@ -24,3 +24,24 @@ def list_all(names: list[str], track_count: list[int], tracks_downloaded: list[i
         )
 
     console.print(table)
+
+def list_one(pl_name: str, title_list: list[str], downloaded_list: list[bool], length_list: list[int], size_list: list[int]):
+    table = Table(title=f"Tracks in {pl_name}", header_style="bold green")
+    table.add_column("Title")
+    table.add_column("Downloaded?")
+    table.add_column("Length", justify="right")
+    table.add_column("Size", justify="right")
+
+    if not (len(title_list) == len(downloaded_list) == len(length_list) == len(size_list)):
+        raise ValueError("Lists are not all the same length.")
+
+    for i, title in enumerate(title_list):
+        # Converted integers to strings using f-strings
+        table.add_row(
+            title, 
+            f"{downloaded_list[i]}", 
+            f"{length_list[i]}", 
+            f"{size_list[i]:.1f} MB"
+        )
+
+    console.print(table)

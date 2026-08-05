@@ -1,5 +1,6 @@
 import os
 import json
+from mutagen.mp4 import MP4, MP4Cover
 from pathlib import Path
 import shutil
 import tempfile
@@ -20,6 +21,12 @@ def find_playlist_directories(base_music_dir: Path) -> list[Path]:
     
     return playlist_directories
 
+def reason_playlist_true_name(playlist_name: str) -> str:
+    if not playlist_name.startswith("pl-"):
+        return f"pl-{playlist_name}"
+    else:
+        return playlist_name
+
 def find_playlist_directory(base_music_dir: Path, playlist_name: str, create_if_missing: bool = False) -> Optional[Path]:
     """
     Finds a specific playlist folder, ensuring it has the 'pl-' prefix.
@@ -32,10 +39,7 @@ def find_playlist_directory(base_music_dir: Path, playlist_name: str, create_if_
             return None
 
     # Normalizes the name to ensure it starts with 'pl-'
-    if not playlist_name.startswith("pl-"):
-        target_name = f"pl-{playlist_name}"
-    else:
-        target_name = playlist_name
+    target_name = reason_playlist_true_name(playlist_name)
 
     playlist_path = base_music_dir / target_name
 
@@ -69,17 +73,20 @@ def separate_music_paths(playlist_directories: Union[Path, list[Path]]) -> list[
         
     return playlists
 
-def separate_json_manifest_paths(playlist_directories: list[Path]) -> list[Path]:
-    """
-    Filters out json manifest paths
-    """
+def separate_json_manifest_paths(playlist_directories: Union[Path, list[Path]]) -> list[Path]:
+    """Filters out json manifest paths from one or more directory paths."""
+    # Ensure input is always treated as a list of paths
+    if isinstance(playlist_directories, Path):
+        playlist_directories = [playlist_directories]
+        
     manifests = []
-
     for playlist_dir in playlist_directories:
+        # Generate the expected JSON file name based on the directory name
         json_path = playlist_dir / (playlist_dir.name.removeprefix("pl-") + ".json")
-
+        
         if json_path.exists():
-           manifests.append(json_path)
+            manifests.append(json_path)
+            
     return manifests
 
 def backup_manifests(manifest_paths: list[Path], backup_folder_path: Path):
@@ -104,3 +111,15 @@ def backup_manifests(manifest_paths: list[Path], backup_folder_path: Path):
                 
         # Zip the temporary directory into final archive
         shutil.make_archive(output_zip_path, 'zip', temp_dir)
+
+def get_media_duration(file_path: str) -> str:
+    """
+    Helper abstraction tool. Attempts reading media duration tags. 
+    Returns strings like '3:45' or returns 'N/A' upon exception.
+    """
+    try:
+        audio = MP4(file_path)
+        mins, secs = divmod(int(audio.info.length), 60)
+        return f"{mins}:{secs:02d}"
+    except Exception:
+        return "N/A"

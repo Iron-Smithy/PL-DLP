@@ -61,10 +61,8 @@ def main() -> int:
     # Route commands to their respective actions
     if args.command == "ls":
         if args.playlist:
-            print(f"[ACTION] Listing tracks for playlist: {args.playlist}")
             orchestrator.cmd_list_playlist(args.playlist)
         else:
-            print("[ACTION] Listing all available playlists...")
             orchestrator.cmd_list_all()
 
     elif args.command == "new":

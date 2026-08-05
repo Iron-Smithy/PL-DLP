@@ -1,5 +1,5 @@
 {
-    "playlist_name": "pl-my_playlist",
+    "playlist_name": "pl-myplaylist",
     "total_tracks": 2,
     "songs": [
         {
@@ -11,6 +11,7 @@
             "vocalist_vsynth": "-",
             "language": "English",
             "release_date": "1987-07-27",
+            "length": "-",
             "download_video": false,
             "status": "active"
         },
@@ -23,6 +24,7 @@
             "vocalist_vsynth": "-",
             "language": "-",
             "release_date": "2006-07-04",
+            "length": "-",
             "download_video": false,
             "status": "active"
         }

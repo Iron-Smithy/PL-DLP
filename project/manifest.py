@@ -1,4 +1,5 @@
 import json
+import config
 from pathlib import Path
 
 def load_json_manifest(json_path: Path) -> dict:
@@ -23,3 +24,10 @@ def add_track_to_metadata(json_path: Path, new_track_data: dict):
 
     # Write updated dictionary back to disk
     write_to_json(json_path, data)
+
+def get_first_available(data, keys: list[str], default=config.JSON_FALLBACK_CHAR):
+    """Retrieves the first existing key from a dictionary, returning default if none exist."""
+    for key in keys:
+        if key in data and data[key] is not None:
+            return data[key]
+    return default

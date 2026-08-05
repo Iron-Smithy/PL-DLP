@@ -1,5 +1,5 @@
 {
-    "playlist_name": "pl-synthwave",
+    "playlist_name": "pl-otherplaylist",
     "total_tracks": 2,
     "songs": [
         {
@@ -11,6 +11,7 @@
             "vocalist_vsynth": "-",
             "language": "-",
             "release_date": "-",
+            "length": "-",
             "download_video": false,
             "status": "active"
         },
@@ -23,6 +24,7 @@
             "vocalist_vsynth": "-",
             "language": "-",
             "release_date": "-",
+            "length": "-",
             "download_video": false,
             "status": "active"
         }
