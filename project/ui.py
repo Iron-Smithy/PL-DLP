@@ -2,6 +2,16 @@ from rich.console import Console
 from rich.table import Table
 from rich.progress import Progress, BarColumn, TextColumn, TimeRemainingColumn
 
+def format_bytes(size_in_bytes: int) -> str:
+    """Converts a byte integer into a human-readable file size string."""
+    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+        if size_in_bytes < 1024.0:
+            # Drop trailing zeros for flat bytes, use 2 decimals for KB and up
+            return f"{size_in_bytes:.0f} {unit}" if unit == 'B' else f"{size_in_bytes:.2f} {unit}"
+        size_in_bytes /= 1024.0
+        
+    return f"{size_in_bytes:.2f} PB"
+
 console = Console()
 
 def list_all(names: list[str], track_count: list[int], tracks_downloaded: list[int], total_sizes: list[int]):
@@ -20,7 +30,7 @@ def list_all(names: list[str], track_count: list[int], tracks_downloaded: list[i
             name, 
             f"{track_count[i]}", 
             f"{tracks_downloaded[i]}", 
-            f"{total_sizes[i]:.1f} MB"
+            f"{format_bytes(total_sizes[i])}"
         )
 
     console.print(table)
@@ -41,7 +51,7 @@ def list_one(pl_name: str, title_list: list[str], downloaded_list: list[bool], l
             title, 
             f"{downloaded_list[i]}", 
             f"{length_list[i]}", 
-            f"{size_list[i]:.1f} MB"
+            f"{format_bytes(size_list[i])}"
         )
 
     console.print(table)

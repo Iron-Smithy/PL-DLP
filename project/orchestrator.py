@@ -20,19 +20,19 @@ def cmd_list_all():
     for i, json_path in enumerate(json_directories):
         json_data = manifest.load_json_manifest(json_path)
 
-        songs = playlist_songs_list[i]
+        song_paths = playlist_songs_list[i]
 
-        size = sum(file.stat().st_size for file in songs) / (1024*1024)
+        size = storage.get_directory_size(song_paths)
 
-        names.append(json_data.get("playlist_name", "-")) # !!! change to use the folder name not the json name
-        track_count.append(json_data.get("total_tracks", "-"))
-        tracks_downloaded.append(len(songs))
+        names.append(playlist_directories[i].name or json_data.get("playlist_name", config.JSON_FALLBACK_CHAR))
+        track_count.append(json_data.get("total_tracks", config.JSON_FALLBACK_CHAR))
+        tracks_downloaded.append(len(song_paths))
         total_sizes.append(size)
 
     ui.list_all(names, track_count, tracks_downloaded, total_sizes)
 
-def cmd_list_playlist(playlist_name):
-    playlist_name = storage.reason_playlist_true_name(playlist_name)
+def cmd_list_playlist(playlist_name: str):
+    playlist_name = storage.clean_name(playlist_name)
 
     playlist_path = storage.find_playlist_directory(
         config.MUSIC_ROOT,
@@ -66,10 +66,10 @@ def cmd_list_playlist(playlist_name):
             file_path = playlist_path / "music" / file_name
 
             length = storage.get_media_duration(file_path)
-            size = file_path.stat().st_size / (1024 * 1024)
+            size = storage.get_file_size(file_path)
         else:
-            length = song.get("length", "-")
-            size = song.get("size", 0)
+            length = song.get("length", config.JSON_FALLBACK_CHAR)
+            size = 0
 
         titles.append(title)
         downloaded.append(file_exists)
@@ -83,3 +83,37 @@ def cmd_list_playlist(playlist_name):
         lengths,
         sizes
     )
+
+def cmd_new_playlist(playlist_name: str):
+    playlist_name = (playlist_name or "new-playlist").strip()
+
+    potential_file = Path(playlist_name).expanduser().resolve(strict=False)
+
+    if potential_file.is_file() and potential_file.suffix.lower() == ".json":
+        playlist_name = storage.clean_name(potential_file.stem)
+        new_dir = config.MUSIC_ROOT / playlist_name
+        
+        if new_dir.exists():
+            raise ValueError(f"Error: Folder {playlist_name} already exists")
+            
+        storage.make_directory(new_dir, parents=True)
+        storage.make_directory(new_dir / "Music")
+        
+        target_json = new_dir / f"{playlist_name.removeprefix("pl-")}.json" # !!! make another storage function. like clean name but removes the pl-
+        storage.move(str(potential_file), str(target_json))
+        
+        print(f"NEW (Adopted): Created {playlist_name} from {potential_file.name}")
+        return
+
+    # use final path segment so ./pl-x and pl-x are the same token
+    name = storage.clean_name(Path(playlist_name).expanduser().name)
+    path = config.MUSIC_ROOT / name
+    if path.exists():
+        raise ValueError(f"Error: {name} already exists.")
+        return
+        
+    storage.make_directory(path)
+    storage.make_directory(path / "Music")
+    storage.make_file(path / f"{name.removeprefix("pl-")}.json") # !!! make another storage function. like clean name but removes the pl-
+    
+    print(f"NEW: Created empty playlist '{name}'")

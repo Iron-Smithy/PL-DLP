@@ -21,11 +21,28 @@ def find_playlist_directories(base_music_dir: Path) -> list[Path]:
     
     return playlist_directories
 
-def reason_playlist_true_name(playlist_name: str) -> str:
-    if not playlist_name.startswith("pl-"):
-        return f"pl-{playlist_name}"
-    else:
-        return playlist_name
+def clean_name(playlist_name: str) -> str:
+    if not playlist_name:
+        raise ValueError("Not a valid name")
+    clean_name = playlist_name.strip().lower()
+    if clean_name.startswith("pl-"):
+        clean_name = clean_name[3:]
+    return f"pl-{clean_name}"
+
+def get_file_size(file_path: Path) -> int:
+    return file_path.stat().st_size
+
+def get_directory_size(file_paths: list[Path]) -> int:
+    return sum(get_file_size(file_path) for file_path in file_paths)
+
+def make_file(file_path: Path):
+    file_path.touch()
+
+def make_directory(directory_path: Path, parents: bool = False):
+    directory_path.mkdir(parents=parents)
+
+def move(to_move: Path, target: Path):
+    shutil.move(to_move, target)
 
 def find_playlist_directory(base_music_dir: Path, playlist_name: str, create_if_missing: bool = False) -> Optional[Path]:
     """
@@ -39,7 +56,7 @@ def find_playlist_directory(base_music_dir: Path, playlist_name: str, create_if_
             return None
 
     # Normalizes the name to ensure it starts with 'pl-'
-    target_name = reason_playlist_true_name(playlist_name)
+    target_name = clean_name(playlist_name)
 
     playlist_path = base_music_dir / target_name
 

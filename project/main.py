@@ -33,7 +33,7 @@ def main() -> int:
     new_parser = subparsers.add_parser(
         "new", help="Create a new empty playlist folder"
     )
-    new_parser.add_argument("playlist", help="Name of the new playlist")
+    new_parser.add_argument("playlist_name", help="Name of the new playlist")
 
     # 3. 'rm' command
     rm_parser = subparsers.add_parser(
@@ -66,7 +66,7 @@ def main() -> int:
             orchestrator.cmd_list_all()
 
     elif args.command == "new":
-        print(f"[ACTION] Creating new playlist: {args.playlist}")
+        orchestrator.cmd_new_playlist(args.playlist_name)
 
     elif args.command == "rm":
         print(f"[ACTION] Moving playlist to trash: {args.playlist}")

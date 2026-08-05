@@ -84,9 +84,9 @@ def download_media(url: str, target_path: Path, is_video: bool = False, hook=Non
 def get_iso_code(lang_input: str) -> str:
     # If the input itself is null or empty, return "-" immediately
     if not lang_input:
-        return "-"
+        return config.JSON_FALLBACK_CHAR
     # Otherwise, look it up in the dictionary, defaulting to "-" if not found
-    return config.YOUTUBE_ISO_MAP.get(lang_input, "-")
+    return config.YOUTUBE_ISO_MAP.get(lang_input, config.JSON_FALLBACK_CHAR)
 
 def get_publish_date(info: dict) -> str:
     # Check formatted date strings ('YYYYMMDD')
@@ -105,7 +105,7 @@ def get_publish_date(info: dict) -> str:
     if year:
         return f"{year}-00-00"
 
-    return "-"
+    return config.JSON_FALLBACK_CHAR
 
 def parse_raw_data(info: dict) -> dict:
     return {
@@ -113,6 +113,7 @@ def parse_raw_data(info: dict) -> dict:
         "url": info.get("webpage_url"),
         "thumbnail_url": info.get("thumbnail"),
         "title": info.get("title"),
+        "length": info.get("duration"),
         "account_name": info.get("uploader"),
         "language": get_iso_code(info.get("language")),
         "publish_date": get_publish_date(info),
