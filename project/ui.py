@@ -12,7 +12,7 @@ def format_bytes(size_in_bytes: int) -> str:
         
     return f"{size_in_bytes:.2f} PB"
 
-console = Console()
+CONSOLE = Console()
 
 def list_all(names: list[str], track_count: list[int], tracks_downloaded: list[int], total_sizes: list[int]):
     table = Table(title="All Playlists", header_style="bold cyan")
@@ -33,7 +33,7 @@ def list_all(names: list[str], track_count: list[int], tracks_downloaded: list[i
             f"{format_bytes(total_sizes[i])}"
         )
 
-    console.print(table)
+    CONSOLE.print(table)
 
 def list_one(pl_name: str, title_list: list[str], downloaded_list: list[bool], length_list: list[int], size_list: list[int]):
     table = Table(title=f"Tracks in {pl_name}", header_style="bold green")
@@ -54,4 +54,4 @@ def list_one(pl_name: str, title_list: list[str], downloaded_list: list[bool], l
             f"{format_bytes(size_list[i])}"
         )
 
-    console.print(table)
+    CONSOLE.print(table)

@@ -5,7 +5,11 @@ import manifest
 import metadata
 import storage
 import ui
+
 from pathlib import Path
+from datetime import datetime
+
+from rich.prompt import Confirm
 
 def cmd_list_all():
     playlist_directories = storage.find_playlist_directories(config.MUSIC_ROOT)
@@ -94,7 +98,7 @@ def cmd_new_playlist(playlist_name: str):
         new_dir = config.MUSIC_ROOT / playlist_name
         
         if new_dir.exists():
-            raise ValueError(f"Error: Folder {playlist_name} already exists")
+            ui.CONSOLE.print(f"[red]Error: Folder {playlist_name} already exists.[/]")
             
         storage.make_directory(new_dir, parents=True)
         storage.make_directory(new_dir / "Music")
@@ -102,18 +106,67 @@ def cmd_new_playlist(playlist_name: str):
         target_json = new_dir / f"{playlist_name.removeprefix("pl-")}.json" # !!! make another storage function. like clean name but removes the pl-
         storage.move(str(potential_file), str(target_json))
         
-        print(f"NEW (Adopted): Created {playlist_name} from {potential_file.name}")
+        ui.CONSOLE.print(f"[green]Manifest moved![/] Folder {pl_name} is ready.")
         return
 
     # use final path segment so ./pl-x and pl-x are the same token
     name = storage.clean_name(Path(playlist_name).expanduser().name)
     path = config.MUSIC_ROOT / name
     if path.exists():
-        raise ValueError(f"Error: {name} already exists.")
+        ui.CONSOLE.print(f"[red]Error: {name} already exists.[/]")
         return
         
     storage.make_directory(path)
     storage.make_directory(path / "Music")
     storage.make_file(path / f"{name.removeprefix("pl-")}.json") # !!! make another storage function. like clean name but removes the pl-
     
-    print(f"NEW: Created empty playlist '{name}'")
+    ui.CONSOLE.print(f"[green]Created empty playlist: {name}[/]")
+
+def cmd_remove_playlist(playlist_name: str):
+    playlist_name = (playlist_name).strip()
+
+    playlist_directory = storage.find_playlist_directory(config.MUSIC_ROOT, playlist_name)
+
+    if not playlist_directory:
+        ui.CONSOLE.print(f"[red]Error: {playlist_name} not found.[/]")
+        return
+
+    if Confirm.ask(f"Are you sure you want to move [bold red]{playlist_name}[/] to trash?"):
+        # Create a unique name for the trash
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        target_path = config.TRASH / f"{playlist_name}_{timestamp}"
+        try:
+            storage.move(str(playlist_directory), target_path)
+        except OSError as e:
+            ui.CONSOLE.print(f"[red]Could not move to trash:[/] {e}")
+            return
+        ui.CONSOLE.print(f"[yellow]{playlist_name} moved to {config.TRASH}[/]")
+
+def cmd_rename_playlist(old_name, new_name):
+    old_name = storage.clean_name(old_name)
+    new_name = storage.clean_name(new_name)
+    old_path = config.MUSIC_ROOT / old_name
+    new_path = config.MUSIC_ROOT / new_name
+
+    if not old_path.exists():
+        ui.CONSOLE.print(f"[red]Error: Source {old_name} not found.[/]")
+        return
+    if new_path.exists():
+        ui.CONSOLE.print(f"[red]Error: Destination {new_name} already exists.[/]")
+        return
+
+    try:
+        storage.move(old_path, new_path)
+    except OSError as e:
+        ui.CONSOLE.print(f"[red]Rename failed:[/] {e}")
+        return
+    old_txt = new_path / f"{old_name}.txt"
+    new_txt = new_path / f"{new_name}.txt"
+    if old_txt.exists():
+        try:
+            old_txt.rename(new_txt)
+        except OSError as e:
+            ui.CONSOLE.print(f"[red]Folder moved but manifest rename failed:[/] {e}")
+            return
+
+    ui.CONSOLE.print(f"[green]Successfully renamed {old_name} to {new_name}[/]")

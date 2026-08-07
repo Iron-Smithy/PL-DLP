@@ -39,14 +39,14 @@ def main() -> int:
     rm_parser = subparsers.add_parser(
         "rm", help="Move a playlist to the trash bin"
     )
-    rm_parser.add_argument("playlist", help="Name of the playlist to remove")
+    rm_parser.add_argument("playlist_name", help="Name of the playlist to remove")
 
     # 4. 'mv' command
     mv_parser = subparsers.add_parser(
-        "mv", help="Move or rename a playlist folder"
+        "mv", help="Rename a playlist folder"
     )
-    mv_parser.add_argument("old_path", help="Current playlist name/path")
-    mv_parser.add_argument("new_path", help="New playlist name/path")
+    mv_parser.add_argument("old_name", help="Current playlist name")
+    mv_parser.add_argument("new_name", help="New playlist name")
 
     # 5. 'update' command (Download/Sync)
     update_parser = subparsers.add_parser("update", help="Update/Sync playlist")
@@ -69,10 +69,10 @@ def main() -> int:
         orchestrator.cmd_new_playlist(args.playlist_name)
 
     elif args.command == "rm":
-        print(f"[ACTION] Moving playlist to trash: {args.playlist}")
+        orchestrator.cmd_remove_playlist(args.playlist_name)
 
     elif args.command == "mv":
-        print(f"[ACTION] Renaming '{args.old_path}' to '{args.new_path}'")
+        orchestrator.cmd_rename_playlist(args.old_name, args.new_name)
 
     elif args.command == "update":
         print(
