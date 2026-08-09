@@ -31,3 +31,6 @@ def get_first_available(data, keys: list[str], default=config.JSON_FALLBACK_CHAR
         if key in data and data[key] is not None:
             return data[key]
     return default
+
+def parse_and_update_data(raw_data: dict, ):
+    pass

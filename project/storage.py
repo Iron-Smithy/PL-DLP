@@ -7,6 +7,7 @@ import tempfile
 from datetime import datetime
 from typing import Optional, Union
 
+
 def find_playlist_directories(base_music_dir: Path) -> list[Path]:
     """
     Scans base_music_dir for folders starting with 'pl-'.
@@ -38,8 +39,8 @@ def get_directory_size(file_paths: list[Path]) -> int:
 def make_file(file_path: Path):
     file_path.touch()
 
-def make_directory(directory_path: Path, parents: bool = False):
-    directory_path.mkdir(parents=parents)
+def make_directory(directory_path: Path, parents: bool = False, exists_ok: bool = True):
+    directory_path.mkdir(parents=parents, exist_ok=exists_ok)
 
 def move(to_move: Path, target: Path):
     shutil.move(to_move, target)
