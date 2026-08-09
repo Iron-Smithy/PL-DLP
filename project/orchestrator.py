@@ -106,7 +106,7 @@ def cmd_new_playlist(playlist_name: str):
         target_json = new_dir / f"{playlist_name.removeprefix("pl-")}.json" # !!! make another storage function. like clean name but removes the pl-
         storage.move(str(potential_file), str(target_json))
         
-        ui.CONSOLE.print(f"[green]Manifest moved![/] Folder {pl_name} is ready.")
+        ui.CONSOLE.print(f"[green]Manifest moved![/] Folder {playlist_name} is ready.")
         return
 
     # use final path segment so ./pl-x and pl-x are the same token
@@ -170,3 +170,164 @@ def cmd_rename_playlist(old_name, new_name):
             return
 
     ui.CONSOLE.print(f"[green]Successfully renamed {old_name} to {new_name}[/]")
+
+def _execute_sync_task(task: dict, meta_only: bool = False, no_thumb: bool = False, offline: bool = False) -> str:
+    """Processes a single task: downloads missing files or updates metadata."""
+    song = task["song"]
+    target_path = task["path"]
+    action = task["action"]
+
+    # 1. Skip downloading if offline or if user requested meta-only on a missing file
+    if action == "DL":
+        if offline or meta_only:
+            return "skip"
+        
+        # Call downloader module to fetch the track
+        success = downloader.download_media(song["url"], target_path)
+        if not success:
+            return "fail"
+            
+        action = "META"  # Proceed to tag the newly downloaded file
+
+    # 2. Embed / update metadata tags
+    if action == "META" and target_path.exists():
+        thumb_path = None
+        if not offline:
+            if not no_thumb and song.get("thumbnail_url"):
+                temp_thumb = target_path.parent / f"{target_path.stem}_thumb.jpg"
+                if downloader.download_thumbnail(song["thumbnail_url"], temp_thumb):
+                    thumb_path = temp_thumb
+
+            if song.get("url"):
+                raw_metadata = downloader.select_relevant_data(downloader.extract_data_from_url(song["url"]))
+        print(song)
+        exit()
+
+        # Apply tags using metadata module
+        metadata.write_audio_metadata(
+            audio_path=target_path,
+            title=song.get("title", "-"),
+            artist=song.get("account_name", "-"),
+            cover_jpg_path=thumb_path
+        )
+        
+        # Cleanup temporary thumbnail if it was downloaded
+        if thumb_path and thumb_path.exists():
+            thumb_path.unlink(missing_ok=True)
+            
+        return "success"
+
+    return "fail"
+
+def _process_playlist_sync(playlist_dir: Path, flags: dict) -> dict:
+    """Scans a single playlist, cleans orphans, and runs updates."""
+    json_paths = storage.separate_json_manifest_paths([playlist_dir])
+    if not json_paths:
+        ui.CONSOLE.print(f"[red]Error: Missing manifest in {playlist_dir.name}[/]")
+        return {"dl": 0, "meta": 0, "fail": 0, "skip": 0}
+
+    json_data = manifest.load_json_manifest(json_paths[0])
+    desired_songs = json_data.get("songs", [])
+    
+    music_dir = playlist_dir / "music"
+    storage.make_directory(music_dir,)
+
+    # Get local files on disk
+    music_paths = storage.separate_music_paths([playlist_dir])[0]
+    songs_on_disk = {file.name: file for file in music_paths}
+
+    tasks = []
+    for song in desired_songs:
+        title = song.get("title", "Unknown")
+        target_path = music_dir / f"{title}.m4a"
+
+        action = "META" if target_path.exists() else "DL"
+        
+        # Remove from disk list so remaining items become identified as orphans
+        songs_on_disk.pop(target_path.name, None)
+        
+        tasks.append({
+            "song": song, 
+            "path": target_path, 
+            "action": action, 
+            "pl_path": playlist_dir
+        })
+
+    # Clean orphans by moving them safely to trash
+    for orphan in songs_on_disk.values():
+        try:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            storage.move(str(orphan), config.TRASH / f"{orphan.name}_{timestamp}")
+            ui.CONSOLE.print(f"[yellow]Orphan moved to trash:[/] {orphan.name}")
+        except OSError as error:
+            ui.CONSOLE.print(f"[red]Could not move {orphan.name} to trash:[/] {error}")
+
+    # Process task execution
+    stats = {"dl": 0, "meta": 0, "fail": 0, "skip": 0}
+    for task in tasks:
+        res = _execute_sync_task(
+            task, 
+            meta_only=flags.get("meta_only", False),
+            no_thumb=flags.get("no_thumb", False),
+            offline=flags.get("offline", False)
+        )
+        
+        if res == "success":
+            if task["action"] == "DL":
+                stats["dl"] += 1
+            else:
+                stats["meta"] += 1
+        elif res == "skip":
+            stats["skip"] += 1
+        else:
+            stats["fail"] += 1
+
+    return stats
+
+def cmd_update_playlist(playlist_name: str | None, meta_only: bool, no_thumb: bool, retry_dead: bool, check_json: bool, offline: bool):
+    """Entry point for updating one or all playlists."""
+    flags = {
+        "meta_only": meta_only,
+        "no_thumb": no_thumb,
+        "retry_dead": retry_dead,
+        "check_json": check_json,
+        "offline": offline
+    }
+
+    if playlist_name:
+        clean_pname = storage.clean_name(playlist_name)
+        target_dir = storage.find_playlist_directory(config.MUSIC_ROOT, clean_pname)
+        if not target_dir:
+            ui.CONSOLE.print(f"[red]Error: Playlist '{clean_pname}' not found.[/]")
+            return
+        targets = [target_dir]
+    else:
+        targets = storage.find_playlist_directories(config.MUSIC_ROOT)
+
+    if not targets:
+        ui.CONSOLE.print("[bold green]No playlists found to update.[/]")
+        return
+
+    total_stats = {"dl": 0, "meta": 0, "fail": 0, "skip": 0}
+
+    for p_dir in targets:
+        ui.CONSOLE.print(f"[bold blue]Updating playlist:[/] {p_dir.name}")
+        stats = _process_playlist_sync(p_dir, flags)
+        
+        for k in total_stats:
+            total_stats[k] += stats[k]
+
+    # Print clean summary using UI
+    ui.CONSOLE.print("\n[bold]Sync Finished![/]")
+    ui.CONSOLE.print(f"Downloaded: [green]{total_stats['dl']}[/] | Updated Meta: [yellow]{total_stats['meta']}[/] | Skipped: [blue]{total_stats['skip']}[/] | Failures: [red]{total_stats['fail']}[/]")
+
+def cmd_update_all(meta_only: bool, no_thumb: bool, retry_dead: bool, check_json: bool, offline: bool):
+    """Wrapper function to update all playlists by calling cmd_update_playlist with None."""
+    cmd_update_playlist(
+        playlist_name=None,
+        meta_only=meta_only,
+        no_thumb=no_thumb,
+        retry_dead=retry_dead,
+        check_json=check_json,
+        offline=offline
+    )

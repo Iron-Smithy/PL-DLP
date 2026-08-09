@@ -1,24 +1,20 @@
 __author__ = "Iron Smithy"
 __version__ = "0.1.0"
 
+import argparse
 import orchestrator
 
-import argparse
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        prog="pl-dlp", description="Playlist Manager"
-    )
-
+    parser = argparse.ArgumentParser(prog="pl-dlp", description="Playlist Manager")
     parser.add_argument(
         "--version",
         action="version",
         version=f"%(prog)s {__version__}",
     )
-
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    # 1. 'ls' command (playlist is optional: if omitted, list all playlists)
+    # 1. 'ls' command
     ls_parser = subparsers.add_parser(
         "ls", help="List playlists or tracks in a playlist"
     )
@@ -30,29 +26,49 @@ def main() -> int:
     )
 
     # 2. 'new' command
-    new_parser = subparsers.add_parser(
-        "new", help="Create a new empty playlist folder"
-    )
+    new_parser = subparsers.add_parser("new", help="Create a new empty playlist folder")
     new_parser.add_argument("playlist_name", help="Name of the new playlist")
 
     # 3. 'rm' command
-    rm_parser = subparsers.add_parser(
-        "rm", help="Move a playlist to the trash bin"
-    )
+    rm_parser = subparsers.add_parser("rm", help="Move a playlist to the trash bin")
     rm_parser.add_argument("playlist_name", help="Name of the playlist to remove")
 
     # 4. 'mv' command
-    mv_parser = subparsers.add_parser(
-        "mv", help="Rename a playlist folder"
-    )
+    mv_parser = subparsers.add_parser("mv", help="Rename a playlist folder")
     mv_parser.add_argument("old_name", help="Current playlist name")
     mv_parser.add_argument("new_name", help="New playlist name")
 
     # 5. 'update' command (Download/Sync)
     update_parser = subparsers.add_parser("update", help="Update/Sync playlist")
-    update_parser.add_argument("playlist", help="Name of playlist to update")
     update_parser.add_argument(
-        "--meta-only", action="store_true", help="Only update metadata JSON"
+        "playlist", nargs="?", default=None, help="Optional name of playlist to update"
+    )
+
+    # ***REMOVED*** Media & Download Controls ***REMOVED***
+    update_parser.add_argument(
+        "--meta-only",
+        action="store_true",
+        help="Only process metadata JSON; do not download audio/video files",
+    )
+    update_parser.add_argument(
+        "--no-thumb",
+        action="store_true",
+        help="Skip embedding thumbnails/artwork into downloaded files",
+    )
+    update_parser.add_argument(
+        "--retry-dead",
+        action="store_true",
+        help="Ignore 'dead link' flags in JSON and retry fetching them anyway",
+    )
+
+    # ***REMOVED*** Network & Writing Behavior ***REMOVED***
+    update_parser.add_argument(
+        "--check-json",
+        action="store_true",
+        help="Fetch fresh metadata from the internet to preview, but do not save to JSON",
+    )
+    update_parser.add_argument(
+        "--offline", action="store_true", help="Do not download or fetch anything online"
     )
 
     # Parse arguments provided by the user
@@ -75,9 +91,25 @@ def main() -> int:
         orchestrator.cmd_rename_playlist(args.old_name, args.new_name)
 
     elif args.command == "update":
-        print(
-            f"[ACTION] Updating {args.playlist} (Meta-only: {args.meta_only})"
+        if args.check_json and args.offline:
+            parser.error("Cannot use --check-json and --offline together.")
+
+        flags_info = (
+            f"Meta-only: {args.meta_only}, "
+            f"No-thumb: {args.no_thumb}, "
+            f"Retry-dead: {args.retry_dead}, "
+            f"Check-json: {args.check_json}, "
+            f"Offline: {args.offline}"
         )
+
+        if args.playlist:
+            print(
+                f"[ACTION] Updating specific playlist: {args.playlist} | Flags: {flags_info}"
+            )
+            orchestrator.cmd_update_playlist(args.playlist, args.meta_only, args.no_thumb, args.retry_dead, args.check_json, args.offline)
+        else:
+            print(f"[ACTION] Updating ALL playlists globally | Flags: {flags_info}")
+            orchestrator.cmd_update_all(args.meta_only, args.no_thumb, args.retry_dead, args.check_json, args.offline)
 
     return 0
 

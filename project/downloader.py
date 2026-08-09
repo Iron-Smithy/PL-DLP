@@ -107,7 +107,7 @@ def get_publish_date(info: dict) -> str:
 
     return config.JSON_FALLBACK_CHAR
 
-def parse_raw_data(info: dict) -> dict:
+def select_relevant_data(info: dict) -> dict:
     return {
         "id": info.get("id"),
         "url": info.get("webpage_url"),
