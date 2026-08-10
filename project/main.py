@@ -63,11 +63,6 @@ def main() -> int:
 
     # ***REMOVED*** Network & Writing Behavior ***REMOVED***
     update_parser.add_argument(
-        "--check-json",
-        action="store_true",
-        help="Fetch fresh metadata from the internet to preview, but do not save to JSON",
-    )
-    update_parser.add_argument(
         "--offline", action="store_true", help="Do not download or fetch anything online"
     )
 
@@ -91,14 +86,10 @@ def main() -> int:
         orchestrator.cmd_rename_playlist(args.old_name, args.new_name)
 
     elif args.command == "update":
-        if args.check_json and args.offline:
-            parser.error("Cannot use --check-json and --offline together.")
-
         flags_info = (
             f"Meta-only: {args.meta_only}, "
             f"No-thumb: {args.no_thumb}, "
             f"Retry-dead: {args.retry_dead}, "
-            f"Check-json: {args.check_json}, "
             f"Offline: {args.offline}"
         )
 
@@ -106,10 +97,10 @@ def main() -> int:
             print(
                 f"[ACTION] Updating specific playlist: {args.playlist} | Flags: {flags_info}"
             )
-            orchestrator.cmd_update_playlist(args.playlist, args.meta_only, args.no_thumb, args.retry_dead, args.check_json, args.offline)
+            orchestrator.cmd_update_playlist(args.playlist, args.meta_only, args.no_thumb, args.retry_dead, args.offline)
         else:
             print(f"[ACTION] Updating ALL playlists globally | Flags: {flags_info}")
-            orchestrator.cmd_update_all(args.meta_only, args.no_thumb, args.retry_dead, args.check_json, args.offline)
+            orchestrator.cmd_update_all(args.meta_only, args.no_thumb, args.retry_dead, args.offline)
 
     return 0
 

@@ -4,29 +4,31 @@
     "songs": [
         {
             "id": "SLS9tUa2GXI",
-            "url": "https://music.youtube.com/watch?v=SLS9tUa2GXI",
+            "url": "https://www.youtube.com/watch?v=SLS9tUa2GXI",
             "title": "Featherfall",
-            "artist": "-",
+            "artist": "Aaron Cherof",
             "composer": "-",
             "vocalist_vsynth": "-",
             "language": "-",
-            "release_date": "-",
-            "length": "-",
+            "release_date": "2024-04-26",
+            "length": "5:44",
             "download_video": false,
-            "status": "active"
+            "status": "active",
+            "thumbnail_url": "https://i.ytimg.com/vi/SLS9tUa2GXI/maxresdefault.jpg"
         },
         {
             "id": "CcAV71mXg_8",
-            "url": "https://music.youtube.com/watch?v=CcAV71mXg_8",
+            "url": "https://www.youtube.com/watch?v=CcAV71mXg_8",
             "title": "Watcher",
-            "artist": "-",
+            "artist": "Aaron Cherof",
             "composer": "-",
             "vocalist_vsynth": "-",
             "language": "-",
-            "release_date": "-",
-            "length": "-",
+            "release_date": "2024-04-26",
+            "length": "5:32",
             "download_video": false,
-            "status": "active"
+            "status": "active",
+            "thumbnail_url": "https://i.ytimg.com/vi/CcAV71mXg_8/maxresdefault.jpg"
         }
     ]
 }
