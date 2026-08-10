@@ -10,12 +10,12 @@ def write_audio_metadata(audio_path: Path, data: dict, cover_jpg_path: Path = No
     audio = MP4(audio_path)
     
     # Mutagen keys use the '/xa9' unicode character instead of the raw symbol sometimes
-    audio['/xa9nam'] = data.get('title', '-')
-    audio['/xa9ART'] = data.get('artist', '-')
-    audio['/xa9wrt'] = data.get('composer', '-')
-    audio['/xa9day'] = data.get('release_date', '-')
-    audio['/xa9lan'] = data.get('language', '-')
-    audio['/xa9per'] = data.get('vocalist_vsynth', '-')
+    audio['\xa9nam'] = data.get('title', '-')
+    audio['\xa9ART'] = data.get('artist', '-')
+    audio['\xa9wrt'] = data.get('composer', '-')
+    audio['\xa9day'] = data.get('release_date', '-')
+    audio['\xa9lan'] = data.get('language', '-')
+    audio['\xa9per'] = data.get('vocalist_vsynth', '-')
 
 
     video_id = data.get('id', '')
