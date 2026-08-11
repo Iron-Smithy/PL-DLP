@@ -42,37 +42,33 @@ def merge_song_info(song: dict, info: dict) -> bool:
         return False
 
     # Required or visible metadata from the source should override empty placeholders.
-    if info.get("id") and song.get("id") != info["id"]:
+    if not ("id" in song.get("dont_override", [])) and info.get("id") and song.get("id") != info["id"]:
         song["id"] = info["id"]
         updated = True
 
-    if info.get("url") and song.get("url") != info["url"]:
-        song["url"] = info["url"]
-        updated = True
-
-    if info.get("title") and song.get("title") != info["title"]:
+    if not ("title" in song.get("dont_override", [])) and info.get("title") and song.get("title") != info["title"]:
         song["title"] = info["title"]
         updated = True
 
-    if info.get("length") is not None:
+    if not ("length" in song.get("dont_override", [])) and info.get("length") is not None:
         normalized_length = format_length(info["length"])
         if song.get("length") != normalized_length:
             song["length"] = normalized_length
             updated = True
 
-    if info.get("publish_date") and song.get("release_date") != info["publish_date"]:
+    if not ("publish_date" in song.get("dont_override", [])) and info.get("publish_date") and song.get("release_date") != info["publish_date"]:
         song["release_date"] = info["publish_date"]
         updated = True
 
-    if info.get("language") and song.get("language") in (None, "", "-", config.JSON_FALLBACK_CHAR):
+    if not ("language" in song.get("dont_override", [])) and info.get("language") and song.get("language") != info["language"]:
         song["language"] = info["language"]
         updated = True
 
-    if info.get("account_name") and song.get("artist") in (None, "", "-", config.JSON_FALLBACK_CHAR):
+    if not ("account_name" in song.get("dont_override", [])) and info.get("account_name") and song.get("artist") in (None, "", "-", config.JSON_FALLBACK_CHAR):
         song["artist"] = info["account_name"]
         updated = True
 
-    if info.get("thumbnail_url") and song.get("thumbnail_url") != info["thumbnail_url"]:
+    if not ("thumbnail_url" in song.get("dont_override", [])) and info.get("thumbnail_url") and song.get("thumbnail_url") != info["thumbnail_url"]:
         song["thumbnail_url"] = info["thumbnail_url"]
         updated = True
 

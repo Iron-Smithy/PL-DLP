@@ -65,6 +65,13 @@ def main() -> int:
     update_parser.add_argument(
         "--offline", action="store_true", help="Do not download or fetch anything online"
     )
+    update_parser.add_argument(
+        "--concurrency",
+        "-j",
+        type=int,
+        default=None,
+        help="Number of downloads to run in parallel. Defaults to 4.",
+    )
 
     # Parse arguments provided by the user
     args = parser.parse_args()
@@ -95,12 +102,27 @@ def main() -> int:
 
         if args.playlist:
             print(
-                f"[ACTION] Updating specific playlist: {args.playlist} | Flags: {flags_info}"
+                f"[ACTION] Updating specific playlist: {args.playlist} | Flags: {flags_info} | Concurrency: {args.concurrency or 'default'}"
             )
-            orchestrator.cmd_update_playlist(args.playlist, args.meta_only, args.no_thumb, args.retry_dead, args.offline)
+            orchestrator.cmd_update_playlist(
+                args.playlist,
+                args.meta_only,
+                args.no_thumb,
+                args.retry_dead,
+                args.offline,
+                args.concurrency,
+            )
         else:
-            print(f"[ACTION] Updating ALL playlists globally | Flags: {flags_info}")
-            orchestrator.cmd_update_all(args.meta_only, args.no_thumb, args.retry_dead, args.offline)
+            print(
+                f"[ACTION] Updating ALL playlists globally | Flags: {flags_info} | Concurrency: {args.concurrency or 'default'}"
+            )
+            orchestrator.cmd_update_all(
+                args.meta_only,
+                args.no_thumb,
+                args.retry_dead,
+                args.offline,
+                args.concurrency,
+            )
 
     return 0
 
