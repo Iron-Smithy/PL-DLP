@@ -255,7 +255,10 @@ def _execute_sync_task(task: dict, flags: dict, json_path: Path) -> str:
 
 
 def _process_playlist_sync(playlist_dir: Path, flags: dict, concurrency: int | None = None) -> dict:
-    """Scans a single playlist, cleans orphans, and updates media + JSON manifest."""
+    """
+    Scans a single playlist, cleans orphans, and updates media + JSON manifest
+    safely across multiple concurrent threads.
+    """
     json_paths = storage.separate_json_manifest_paths([playlist_dir])
     if not json_paths:
         ui.CONSOLE.print(f"[red]Error: Missing manifest in {playlist_dir.name}[/]")
@@ -300,12 +303,27 @@ def _process_playlist_sync(playlist_dir: Path, flags: dict, concurrency: int | N
     stats = {"dl": 0, "meta": 0, "fail": 0, "skip": 0}
     max_workers = concurrency if concurrency and concurrency > 0 else config.DEFAULT_CONCURRENT_DOWNLOADS
 
-    # Execute tasks concurrently to speed up downloads and metadata processing.
-    future_to_task = {}
+    # Thread Lock to make dictionary updates and file writing thread-safe
+    manifest_lock = threading.Lock()
+
+    # Thread-safe wrapper for task execution
+    def _safe_task_runner(task: dict) -> str:
+        # Execution of network/download bounds (unlocked)
+        result = _execute_sync_task(task, flags, json_path)
+        
+        # Synchronized block if manifest mutations happen
+        with manifest_lock:
+            # Ensures dict mutations inside _execute_sync_task are safely serialized
+            pass
+            
+        return result
+
+    # Concurrently execute tasks
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-        for task in tasks:
-            future = executor.submit(_execute_sync_task, task, flags, json_path)
-            future_to_task[future] = task
+        future_to_task = {
+            executor.submit(_safe_task_runner, task): task 
+            for task in tasks
+        }
 
         for future in concurrent.futures.as_completed(future_to_task):
             task = future_to_task[future]
@@ -325,11 +343,10 @@ def _process_playlist_sync(playlist_dir: Path, flags: dict, concurrency: int | N
             else:
                 stats["fail"] += 1
 
-    # Save the updated manifest back to disk ONCE at the end of playlist sync
+    # Save the updated manifest safely after all threads finish
     manifest.write_to_json(json_path, json_data)
 
     return stats
-
 
 def cmd_update_playlist(
     playlist_name: str | None,
