@@ -1,3 +1,6 @@
+import concurrent.futures
+import threading
+
 import config
 import downloader
 import exporter
@@ -10,6 +13,28 @@ from pathlib import Path
 from datetime import datetime
 
 from rich.prompt import Confirm
+
+import os
+import argparse
+import shutil
+import time
+import logging
+import yt_dlp
+import unicodedata
+import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+from rich.console import Console
+from rich.live import Live
+from rich.table import Table
+from rich.panel import Panel
+from rich.progress import Progress, BarColumn, TextColumn, TimeRemainingColumn, TimeElapsedColumn
+from rich.console import Group
+from rich.markdown import Markdown
+from mutagen import File as MutagenFile
+from mutagen.mp4 import MP4, MP4FreeForm
+
+
 
 def cmd_list_all():
     playlist_directories = storage.find_playlist_directories(config.MUSIC_ROOT)
@@ -229,7 +254,7 @@ def _execute_sync_task(task: dict, flags: dict, json_path: Path) -> str:
     return "skip"
 
 
-def _process_playlist_sync(playlist_dir: Path, flags: dict) -> dict:
+def _process_playlist_sync(playlist_dir: Path, flags: dict, concurrency: int | None = None) -> dict:
     """Scans a single playlist, cleans orphans, and updates media + JSON manifest."""
     json_paths = storage.separate_json_manifest_paths([playlist_dir])
     if not json_paths:
@@ -273,20 +298,32 @@ def _process_playlist_sync(playlist_dir: Path, flags: dict) -> dict:
             ui.CONSOLE.print(f"[red]Could not move {orphan.name} to trash:[/] {error}")
 
     stats = {"dl": 0, "meta": 0, "fail": 0, "skip": 0}
+    max_workers = concurrency if concurrency and concurrency > 0 else config.DEFAULT_CONCURRENT_DOWNLOADS
 
-    # Execute tasks
-    for task in tasks:
-        res = _execute_sync_task(task, flags, json_path)
+    # Execute tasks concurrently to speed up downloads and metadata processing.
+    future_to_task = {}
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        for task in tasks:
+            future = executor.submit(_execute_sync_task, task, flags, json_path)
+            future_to_task[future] = task
 
-        if res == "success":
-            if task["action"] == "DL":
-                stats["dl"] += 1
+        for future in concurrent.futures.as_completed(future_to_task):
+            task = future_to_task[future]
+            try:
+                res = future.result()
+            except Exception as exc:
+                ui.CONSOLE.print(f"[red]Task failed unexpectedly for {task['path'].name}:[/] {exc}")
+                res = "fail"
+
+            if res == "success":
+                if task["action"] == "DL":
+                    stats["dl"] += 1
+                else:
+                    stats["meta"] += 1
+            elif res == "skip":
+                stats["skip"] += 1
             else:
-                stats["meta"] += 1
-        elif res == "skip":
-            stats["skip"] += 1
-        else:
-            stats["fail"] += 1
+                stats["fail"] += 1
 
     # Save the updated manifest back to disk ONCE at the end of playlist sync
     manifest.write_to_json(json_path, json_data)
@@ -300,6 +337,7 @@ def cmd_update_playlist(
     no_thumb: bool,
     retry_dead: bool,
     offline: bool,
+    concurrency: int | None = None,
 ):
     """Entry point for updating one or all playlists."""
     flags = {
@@ -327,7 +365,7 @@ def cmd_update_playlist(
 
     for p_dir in targets:
         ui.CONSOLE.print(f"[bold blue]Updating playlist:[/] {p_dir.name}")
-        stats = _process_playlist_sync(p_dir, flags)
+        stats = _process_playlist_sync(p_dir, flags, concurrency)
 
         for k in total_stats:
             total_stats[k] += stats[k]
@@ -341,7 +379,7 @@ def cmd_update_playlist(
     )
 
 
-def cmd_update_all(meta_only: bool, no_thumb: bool, retry_dead: bool, offline: bool):
+def cmd_update_all(meta_only: bool, no_thumb: bool, retry_dead: bool, offline: bool, concurrency: int | None = None):
     """Wrapper function to update all playlists."""
     cmd_update_playlist(
         playlist_name=None,
@@ -349,4 +387,5 @@ def cmd_update_all(meta_only: bool, no_thumb: bool, retry_dead: bool, offline: b
         no_thumb=no_thumb,
         retry_dead=retry_dead,
         offline=offline,
+        concurrency=concurrency,
     )

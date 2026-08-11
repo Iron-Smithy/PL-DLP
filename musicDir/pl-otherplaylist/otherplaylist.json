@@ -14,7 +14,8 @@
             "length": "5:44",
             "download_video": false,
             "status": "active",
-            "thumbnail_url": "https://i.ytimg.com/vi/SLS9tUa2GXI/maxresdefault.jpg"
+            "thumbnail_url": "https://i.ytimg.com/vi/SLS9tUa2GXI/maxresdefault.jpg",
+            "dont_override": []
         },
         {
             "id": "CcAV71mXg_8",
@@ -28,7 +29,8 @@
             "length": "5:32",
             "download_video": false,
             "status": "active",
-            "thumbnail_url": "https://i.ytimg.com/vi/CcAV71mXg_8/maxresdefault.jpg"
+            "thumbnail_url": "https://i.ytimg.com/vi/CcAV71mXg_8/maxresdefault.jpg",
+            "dont_override": []
         }
     ]
 }
