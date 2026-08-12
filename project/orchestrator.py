@@ -1,5 +1,11 @@
 import concurrent.futures
+from datetime import datetime
+from pathlib import Path
 import threading
+
+from rich.console import Group
+from rich.live import Live
+from rich.prompt import Confirm
 
 import config
 import downloader
@@ -8,33 +14,6 @@ import manifest
 import metadata
 import storage
 import ui
-
-from pathlib import Path
-from datetime import datetime
-
-from rich.prompt import Confirm
-
-import os
-import argparse
-import shutil
-import time
-import logging
-import yt_dlp
-import unicodedata
-import re
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
-from rich.console import Console
-from rich.live import Live
-from rich.table import Table
-from rich.panel import Panel
-from rich.progress import Progress, BarColumn, TextColumn, TimeRemainingColumn, TimeElapsedColumn
-from rich.console import Group
-from rich.markdown import Markdown
-from mutagen import File as MutagenFile
-from mutagen.mp4 import MP4, MP4FreeForm
-
-
 
 def cmd_list_all():
     playlist_directories = storage.find_playlist_directories(config.MUSIC_ROOT)
@@ -180,9 +159,13 @@ def cmd_rename_playlist(old_name: str, new_name: str):
 
     ui.CONSOLE.print(f"[green]Successfully renamed {old_name} to {new_name}[/]")
 
-
-def _execute_sync_task(task: dict, flags: dict, json_path: Path) -> str:
-    """Processes a single task: updates JSON, downloads missing files, or tags metadata."""
+def _execute_sync_task(
+    task: dict,
+    flags: dict,
+    json_path: Path,
+    item_progress=None,
+    item_task_id=None,
+) -> str:
     song = task["song"]
     target_path = task["path"]
     action = task["action"]
@@ -192,77 +175,90 @@ def _execute_sync_task(task: dict, flags: dict, json_path: Path) -> str:
     retry_dead = flags.get("retry_dead", False)
     offline = flags.get("offline", False)
 
-    status = song.get("status", "active")
-    if status == "DEAD" and not retry_dead:
-        return "skip"
+    if song.get("status") == "DEAD" and not retry_dead:
+        return "dead"
 
+    title = song.get("title", "Unknown Track")
+    if item_progress and item_task_id is not None:
+        item_progress.update(
+            item_task_id, description=f"[cyan]Syncing:[/] {title[:28]}"
+        )
+
+    # 1. Fetch metadata if missing
     needs_info = (
-        song.get("thumbnail_url") in (None, "", config.JSON_FALLBACK_CHAR) or
-        song.get("artist") in (None, "", config.JSON_FALLBACK_CHAR) or
-        song.get("language") in (None, "", config.JSON_FALLBACK_CHAR)
+        song.get("thumbnail_url") in (None, "", config.JSON_FALLBACK_CHAR)
+        or song.get("artist") in (None, "", config.JSON_FALLBACK_CHAR)
     )
 
     if needs_info and not offline and song.get("url"):
         try:
-            info = downloader.extract_data_from_url(song["url"])
-            relevant = downloader.select_relevant_data(info)
-            updated = manifest.merge_song_info(song, relevant)
-            if updated:
-                song["status"] = "active"
+            raw_info = downloader.extract_data_from_url(song["url"])
+            clean_info = downloader.select_relevant_data(raw_info)
+            manifest.merge_song_info(song, clean_info)
+            song["status"] = "active"
         except Exception:
             song["status"] = "DEAD"
-            return "fail"
+            return "dead"
 
+    # 2. Download Media
     if action == "DL":
         if offline or meta_only:
             return "skip"
 
+        def _progress_cb(downloaded, total):
+            if item_progress and item_task_id is not None and total > 0:
+                item_progress.update(
+                    item_task_id, completed=downloaded, total=total
+                )
+
         is_video = bool(song.get("download_video", False))
-        try:
-            success = downloader.download_media(song.get("url"), target_path, is_video=is_video)
-        except Exception:
-            success = False
+        success = downloader.download_media(
+            song.get("url"),
+            target_path,
+            is_video=is_video,
+            progress_callback=_progress_cb,
+        )
 
         if not success:
             song["status"] = "DEAD"
             return "fail"
 
         song["status"] = "active"
-        action = "META"  # Move to tagging phase now that the file exists
+        action = "META"
 
+    # 3. Apply ID3 / iTunes M4A Metadata
     if action == "META" and target_path.exists():
         thumb_path = None
-
-        # Fetch Thumbnail if needed and allowed
-        if not offline and not no_thumb and song.get("thumbnail_url"): # !!! attempt to reconstruct thumbnail url if missing: https://i.ytimg.com/vi/[VIDEO_ID]/hqdefault.jpg
+        if not offline and not no_thumb and song.get("thumbnail_url"):
             temp_thumb = target_path.parent / f"{target_path.stem}_thumb.jpg"
             if downloader.download_thumbnail(song["thumbnail_url"], temp_thumb):
                 thumb_path = temp_thumb
 
         try:
-            # Directly feed the song dict to write_audio_metadata!
             metadata.write_audio_metadata(
-                audio_path=target_path, data=song, cover_jpg_path=thumb_path
+                audio_path=target_path,
+                data=song,
+                cover_jpg_path=thumb_path,
+                delete_thumbnail=True,
             )
             song["status"] = "active"
             return "success"
-        except Exception as e:
-            ui.CONSOLE.print(f"[red]Failed to tag {target_path.name}:[/] {e}")
+        except Exception:
             song["status"] = "ERR"
             return "fail"
 
     return "skip"
 
 
-def _process_playlist_sync(playlist_dir: Path, flags: dict, concurrency: int | None = None) -> dict:
-    """
-    Scans a single playlist, cleans orphans, and updates media + JSON manifest
-    safely across multiple concurrent threads.
-    """
+def _process_playlist_sync(
+    playlist_dir: Path, flags: dict, concurrency: int | None = None
+) -> dict:
     json_paths = storage.separate_json_manifest_paths([playlist_dir])
     if not json_paths:
-        ui.CONSOLE.print(f"[red]Error: Missing manifest in {playlist_dir.name}[/]")
-        return {"dl": 0, "meta": 0, "fail": 0, "skip": 0}
+        ui.CONSOLE.print(
+            f"[red]Error: Missing manifest in {playlist_dir.name}[/]"
+        )
+        return {"dl": 0, "meta": 0, "fail": 0, "skip": 0, "dead": 0}
 
     json_path = json_paths[0]
     json_data = manifest.load_json_manifest(json_path)
@@ -271,7 +267,6 @@ def _process_playlist_sync(playlist_dir: Path, flags: dict, concurrency: int | N
     music_dir = playlist_dir / "music"
     storage.make_directory(music_dir)
 
-    # Map existing files on disk
     music_paths = storage.separate_music_paths([playlist_dir])[0]
     songs_on_disk = {file.name: file for file in music_paths}
 
@@ -281,70 +276,91 @@ def _process_playlist_sync(playlist_dir: Path, flags: dict, concurrency: int | N
         target_path = music_dir / f"{title}.m4a"
         action = "META" if target_path.exists() else "DL"
 
-        # Track existing files so leftover ones are orphans
         songs_on_disk.pop(target_path.name, None)
 
-        tasks.append({
-            "song": song,
-            "path": target_path,
-            "action": action,
-            "pl_path": playlist_dir,
-        })
+        tasks.append(
+            {
+                "song": song,
+                "path": target_path,
+                "action": action,
+                "pl_path": playlist_dir,
+            }
+        )
 
-    # Clean orphaned audio files by moving them to trash
+    # Clean orphans
     for orphan in songs_on_disk.values():
         try:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            storage.move(str(orphan), config.TRASH / f"{orphan.name}_{timestamp}")
-            ui.CONSOLE.print(f"[yellow]Orphan moved to trash:[/] {orphan.name}")
-        except OSError as error:
-            ui.CONSOLE.print(f"[red]Could not move {orphan.name} to trash:[/] {error}")
+            storage.move(
+                str(orphan), config.TRASH / f"{orphan.name}_{timestamp}"
+            )
+        except OSError:
+            pass
 
-    stats = {"dl": 0, "meta": 0, "fail": 0, "skip": 0}
-    max_workers = concurrency if concurrency and concurrency > 0 else config.DEFAULT_CONCURRENT_DOWNLOADS
+    stats = {"dl": 0, "meta": 0, "fail": 0, "skip": 0, "dead": 0}
+    if not tasks:
+        ui.render_sync_summary(stats, 0, playlist_dir.name)
+        return stats
 
-    # Thread Lock to make dictionary updates and file writing thread-safe
+    max_workers = (
+        concurrency
+        if concurrency and concurrency > 0
+        else config.DEFAULT_CONCURRENT_DOWNLOADS
+    )
+
+    global_progress, item_progress = ui.create_sync_progress_group()
+    progress_group = Group(item_progress, global_progress)
+
+    main_task_id = global_progress.add_task(
+        f"Syncing Playlist [bold cyan]{playlist_dir.name}[/]",
+        total=len(tasks),
+    )
+
     manifest_lock = threading.Lock()
 
-    # Thread-safe wrapper for task execution
-    def _safe_task_runner(task: dict) -> str:
-        # Execution of network/download bounds (unlocked)
-        result = _execute_sync_task(task, flags, json_path)
-        
-        # Synchronized block if manifest mutations happen
-        with manifest_lock:
-            # Ensures dict mutations inside _execute_sync_task are safely serialized
-            pass
-            
-        return result
+    with Live(progress_group, console=ui.CONSOLE, refresh_per_second=10):
+        with concurrent.futures.ThreadPoolExecutor(
+            max_workers=max_workers
+        ) as executor:
+            future_to_task = {}
 
-    # Concurrently execute tasks
-    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-        future_to_task = {
-            executor.submit(_safe_task_runner, task): task 
-            for task in tasks
-        }
+            for task in tasks:
+                item_task_id = item_progress.add_task("Pending...", total=100)
 
-        for future in concurrent.futures.as_completed(future_to_task):
-            task = future_to_task[future]
-            try:
-                res = future.result()
-            except Exception as exc:
-                ui.CONSOLE.print(f"[red]Task failed unexpectedly for {task['path'].name}:[/] {exc}")
-                res = "fail"
+                def _thread_job(t=task, tid=item_task_id):
+                    res = _execute_sync_task(
+                        t, flags, json_path, item_progress, tid
+                    )
+                    item_progress.remove_task(tid)
+                    return res
 
-            if res == "success":
-                if task["action"] == "DL":
-                    stats["dl"] += 1
-                else:
-                    stats["meta"] += 1
-            elif res == "skip":
-                stats["skip"] += 1
-            else:
-                stats["fail"] += 1
+                future = executor.submit(_thread_job)
+                future_to_task[future] = task
 
-    # Save the updated manifest safely after all threads finish
+            for future in concurrent.futures.as_completed(future_to_task):
+                task = future_to_task[future]
+                try:
+                    res = future.result()
+                except Exception:
+                    res = "fail"
+
+                with manifest_lock:
+                    if res == "success":
+                        if task["action"] == "DL":
+                            stats["dl"] += 1
+                        else:
+                            stats["meta"] += 1
+                    elif res == "skip":
+                        stats["skip"] += 1
+                    elif res == "dead":
+                        stats["dead"] += 1
+                    else:
+                        stats["fail"] += 1
+
+                global_progress.update(main_task_id, advance=1)
+
     manifest.write_to_json(json_path, json_data)
+    ui.render_sync_summary(stats, len(tasks), playlist_dir.name)
 
     return stats
 
