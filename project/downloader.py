@@ -58,17 +58,41 @@ def download_thumbnail(thumbnail_url: str, save_path: Path) -> bool:
 def get_ytdlp_options(
     target_path: Path, is_video: bool = False, hook=None
 ) -> dict:
-    opts = {
-        "format": "bestvideo+bestaudio/best" if is_video else "bestaudio/best",
-        "outtmpl": str(target_path.with_suffix("")),  # yt-dlp appends ext
-        "quiet": True,
-        "no_warnings": True,
-        "noprogress": True,
-        "logger": YDLQuietLogger(),
-        "writethumbnail": False,
-    }
+    audio_ext = config.AUDIO_EXT.lstrip(".")
+    video_ext = config.VIDEO_EXT.lstrip(".")
+
+    if is_video:
+        opts = {
+            "format": "bestvideo+bestaudio/best",
+            "outtmpl": str(target_path.with_suffix("")) + ".%(ext)s",
+            "merge_output_format": video_ext,
+        }
+    else:
+        opts = {
+            "format": "bestaudio/best",
+            "outtmpl": str(target_path.with_suffix("")) + ".%(ext)s",
+            "postprocessors": [
+                {
+                    "key": "FFmpegExtractAudio",
+                    "preferredcodec": audio_ext,
+                    "preferredquality": "0",
+                }
+            ],
+        }
+
+    opts.update(
+        {
+            "quiet": True,
+            "no_warnings": True,
+            "noprogress": True,
+            "logger": YDLQuietLogger(),
+            "writethumbnail": False,
+        }
+    )
+
     if hook:
         opts["progress_hooks"] = [hook]
+
     return opts
 
 
@@ -91,9 +115,20 @@ def download_media(
     try:
         with yt_dlp.YoutubeDL(opts) as ydl:
             ydl.download([url])
+
+        if not target_path.exists():
+            raise RuntimeError(
+                f"yt-dlp reported success, but expected file was not created: "
+                f"{target_path}"
+            )
+
         return True
-    except Exception:
-        return False
+    
+    except Exception as e:
+        print("\n[ERROR] Download failed")
+        print(f"Type: {type(e).__name__}")
+        print(f"Message: {e}")
+        raise
 
 
 def get_iso_code(lang_input: str) -> str:
