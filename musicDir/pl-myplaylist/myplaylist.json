@@ -5,17 +5,19 @@
         {
             "id": "dQw4w9WgXcQ",
             "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-            "title": "Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)",
+            "title": "Never Gonna Give You Up",
             "artist": "Rick Astley",
             "composer": "Stock Aitken Waterman",
             "vocalist_vsynth": "-",
             "language": "English",
             "release_date": "2009-10-25",
             "length": "3:33",
-            "download_video": false,
+            "download_video": true,
             "status": "active",
             "thumbnail_url": "https://i.ytimg.com/vi/dQw4w9WgXcQ/maxresdefault.jpg",
-            "dont_override": []
+            "dont_override": [
+                "title"
+            ]
         },
         {
             "id": "Tjp8cj8Vzyo",
