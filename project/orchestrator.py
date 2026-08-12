@@ -64,7 +64,7 @@ def cmd_list_playlist(playlist_name: str):
 
     for song in songs:
         title = song.get("title", "Unknown")
-        file_name = f"{title}.m4a"
+        file_name = f"{title}{config.AUDIO_EXT}"
         file_exists = file_name in downloaded_files
 
         if file_exists:
@@ -159,6 +159,17 @@ def cmd_rename_playlist(old_name: str, new_name: str):
 
     ui.CONSOLE.print(f"[green]Successfully renamed {old_name} to {new_name}[/]")
 
+def ensure_extension(path: Path, extension: str) -> Path:
+    extension = extension if extension.startswith(".") else f".{extension}"
+
+    if path.suffix.lower() == extension.lower():
+        return path
+
+    if path.suffix:
+        return path.with_suffix(extension)
+
+    return Path(str(path) + extension)
+
 def _execute_sync_task(
     task: dict,
     flags: dict,
@@ -167,7 +178,13 @@ def _execute_sync_task(
     item_task_id=None,
 ) -> str:
     song = task["song"]
-    target_path = task["path"]
+    is_video = bool(song.get("download_video", False))
+    
+    # Resolve exact path on disk depending on audio vs video mode
+    target_path = ensure_extension(
+        task["path"],
+        config.VIDEO_EXT if is_video else config.AUDIO_EXT
+    )
     action = task["action"]
 
     meta_only = flags.get("meta_only", False)
@@ -211,7 +228,6 @@ def _execute_sync_task(
                     item_task_id, completed=downloaded, total=total
                 )
 
-        is_video = bool(song.get("download_video", False))
         success = downloader.download_media(
             song.get("url"),
             target_path,
@@ -226,7 +242,7 @@ def _execute_sync_task(
         song["status"] = "active"
         action = "META"
 
-    # 3. Apply ID3 / iTunes M4A Metadata
+    # 3. Apply media metadata
     if action == "META" and target_path.exists():
         thumb_path = None
         if not offline and not no_thumb and song.get("thumbnail_url"):
@@ -273,9 +289,11 @@ def _process_playlist_sync(
     tasks = []
     for song in desired_songs:
         title = song.get("title", "Unknown")
-        target_path = music_dir / f"{title}.m4a"
-        action = "META" if target_path.exists() else "DL"
+        is_video = bool(song.get("download_video", False))
+        ext = config.VIDEO_EXT if is_video else config.AUDIO_EXT
+        target_path = music_dir / f"{title}{ext}"
 
+        action = "META" if target_path.exists() else "DL"
         songs_on_disk.pop(target_path.name, None)
 
         tasks.append(

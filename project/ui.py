@@ -124,7 +124,7 @@ def render_sync_summary(stats: dict, total_tasks: int, playlist_name: str):
     table.add_row("[bold blue]Skipped / Up-to-date:[/]", str(stats.get("skip", 0)))
 
     if stats.get("dead", 0) > 0:
-        table.add_row("[bold magenta]Dead Links Encountered:[/", str(stats["dead"]))
+        table.add_row("[bold magenta]Dead Links Encountered:[/]", str(stats["dead"]))
     if stats.get("fail", 0) > 0:
         table.add_row("[bold red]Failed Operations:[/]", str(stats["fail"]))
 
