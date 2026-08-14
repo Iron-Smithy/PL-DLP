@@ -5,7 +5,6 @@ import yt_dlp
 
 import config
 
-
 class YDLQuietLogger:
     def debug(self, msg):
         pass
@@ -16,6 +15,30 @@ class YDLQuietLogger:
     def error(self, msg):
         pass
 
+def import_playlist(source: str, urls_to_process: list) -> list:
+    ydl_opts = {
+        "quiet": True,
+        "no_warnings": True,
+        "extract_flat": "in_playlist",
+    }
+
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(source, download=False)
+        entries = info.get("entries") or []
+
+        for entry in entries:
+            if not entry:
+                continue
+
+            # Ensure we build a valid full YouTube URL from flat entries
+            url_or_id = entry.get("url") or entry.get("id")
+            if url_or_id:
+                if not url_or_id.startswith("http"):
+                    full_url = f"https://www.youtube.com/watch?v={url_or_id}"
+                else:
+                    full_url = url_or_id
+                urls_to_process.append(full_url)
+    return urls_to_process
 
 def extract_data_from_url(url: str) -> dict:
     ydl_info_opts = {
@@ -42,7 +65,6 @@ def extract_data_from_url(url: str) -> dict:
 
     return info
 
-
 def download_thumbnail(thumbnail_url: str, save_path: Path) -> bool:
     """Downloads thumbnail image directly from its web URL."""
     if not thumbnail_url:
@@ -53,7 +75,6 @@ def download_thumbnail(thumbnail_url: str, save_path: Path) -> bool:
         return save_path.exists()
     except Exception:
         return False
-
 
 def get_ytdlp_options(
     target_path: Path, is_video: bool = False, hook=None
@@ -95,7 +116,6 @@ def get_ytdlp_options(
 
     return opts
 
-
 def download_media(
     url: str, target_path: Path, is_video: bool = False, progress_callback=None
 ) -> bool:
@@ -130,12 +150,10 @@ def download_media(
         print(f"Message: {e}")
         raise
 
-
 def get_iso_code(lang_input: str) -> str:
     if not lang_input:
         return config.JSON_FALLBACK_CHAR
     return config.YOUTUBE_ISO_MAP.get(lang_input, config.JSON_FALLBACK_CHAR)
-
 
 def get_publish_date(info: dict) -> str:
     date_str = info.get("release_date") or info.get("upload_date")
@@ -151,7 +169,6 @@ def get_publish_date(info: dict) -> str:
         return f"{year}-00-00"
 
     return config.JSON_FALLBACK_CHAR
-
 
 def select_relevant_data(info: dict) -> dict:
     return {

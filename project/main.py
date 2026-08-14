@@ -3,9 +3,11 @@ __version__ = "0.1.0"
 
 import argparse
 import orchestrator
+import config
 
 
-def main() -> int:
+def create_parser() -> argparse.ArgumentParser:
+    """Creates and configures the CLI argument parser."""
     parser = argparse.ArgumentParser(prog="pl-dlp", description="Playlist Manager")
     parser.add_argument(
         "--version",
@@ -14,9 +16,9 @@ def main() -> int:
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    # 1. 'ls' command
+    # 'ls' command
     ls_parser = subparsers.add_parser(
-        "ls", help="List playlists or tracks in a playlist"
+        "ls", aliases=["list", "dir"], help="List playlists or tracks in a playlist"
     )
     ls_parser.add_argument(
         "playlist",
@@ -25,104 +27,94 @@ def main() -> int:
         help="Optional name of a playlist",
     )
 
-    # 2. 'new' command
-    new_parser = subparsers.add_parser("new", help="Create a new empty playlist folder")
+    # 'new' command (blank playlists)
+    new_parser = subparsers.add_parser(
+        "new", aliases=["create", "make"], help="Create a new empty playlist folder"
+    )
     new_parser.add_argument("playlist_name", help="Name of the new playlist")
 
-    # 3. 'rm' command
-    rm_parser = subparsers.add_parser("rm", help="Move a playlist to the trash bin")
+    # 'add' command (Append songs/URLs to an existing playlist)
+    add_parser = subparsers.add_parser(
+        "add", aliases=["append"], help="Add one or more song URLs to a playlist"
+    )
+    add_parser.add_argument("playlist", help="Target playlist name")
+    add_parser.add_argument("urls", nargs="+", help="One or more YouTube URLs or a text/JSON file with URLs")
+
+    # 'import' command (YouTube playlist URL, or raw JSON/TXT list of links)
+    import_parser = subparsers.add_parser(
+        "import", aliases=["ingest", "fetch"], help="Import a YouTube playlist or list of links"
+    )
+    import_parser.add_argument("source", help="YouTube Playlist URL or file path (JSON/TXT array of URLs)")
+    import_parser.add_argument("playlist_name", nargs="?", default=None, help="Optional custom name for imported playlist")
+
+    # 'rm' command
+    rm_parser = subparsers.add_parser(
+        "rm", aliases=["remove", "del", "delete"], help="Move a playlist to the trash bin"
+    )
     rm_parser.add_argument("playlist_name", help="Name of the playlist to remove")
 
-    # 4. 'mv' command
-    mv_parser = subparsers.add_parser("mv", help="Rename a playlist folder")
+    # 'mv' command
+    mv_parser = subparsers.add_parser(
+        "mv", aliases=["rename", "move"], help="Rename a playlist folder"
+    )
     mv_parser.add_argument("old_name", help="Current playlist name")
     mv_parser.add_argument("new_name", help="New playlist name")
 
-    # 5. 'update' command (Download/Sync)
-    update_parser = subparsers.add_parser("update", help="Update/Sync playlist")
+    # 'update' command
+    update_parser = subparsers.add_parser(
+        "update", aliases=["sync", "up"], help="Update/Sync playlist"
+    )
     update_parser.add_argument(
         "playlist", nargs="?", default=None, help="Optional name of playlist to update"
     )
+    # Media Controls
+    update_parser.add_argument("--meta-only", action="store_true", help="Only process metadata JSON; do not download audio/video files")
+    update_parser.add_argument("--no-thumb", action="store_true", help="Skip embedding thumbnails/artwork into downloaded files")
+    update_parser.add_argument("--retry-dead", action="store_true", help="Ignore 'dead link' flags in JSON and retry fetching them anyway")
 
-    # Media & Download Controls ***REMOVED***
+    # Network & Engine Behavior
+    update_parser.add_argument("--offline", action="store_true", help="Do not download or fetch anything online")
     update_parser.add_argument(
-        "--meta-only",
-        action="store_true",
-        help="Only process metadata JSON; do not download audio/video files",
-    )
-    update_parser.add_argument(
-        "--no-thumb",
-        action="store_true",
-        help="Skip embedding thumbnails/artwork into downloaded files",
-    )
-    update_parser.add_argument(
-        "--retry-dead",
-        action="store_true",
-        help="Ignore 'dead link' flags in JSON and retry fetching them anyway",
+        "--concurrency", "-j", type=int, default=config.DEFAULT_CONCURRENT_DOWNLOADS, help="Parallel downloads"
     )
 
-    # Network & Writing Behavior ***REMOVED***
-    update_parser.add_argument(
-        "--offline", action="store_true", help="Do not download or fetch anything online"
-    )
-    update_parser.add_argument(
-        "--concurrency",
-        "-j",
-        type=int,
-        default=None,
-        help="Number of downloads to run in parallel. Defaults to 4.",
-    )
+    return parser
 
-    # Parse arguments provided by the user
+
+def main() -> int:
+    parser = create_parser()
     args = parser.parse_args()
 
-    # Route commands to their respective actions
-    if args.command == "ls":
+    # Route commands using lists to catch all aliases
+    if args.command in ["ls", "list", "dir"]:
         if args.playlist:
             orchestrator.cmd_list_playlist(args.playlist)
         else:
             orchestrator.cmd_list_all()
 
-    elif args.command == "new":
+    elif args.command in ["new", "create", "make"]:
         orchestrator.cmd_new_playlist(args.playlist_name)
 
-    elif args.command == "rm":
+    elif args.command in ["add", "append"]:
+        orchestrator.cmd_add_songs(args.playlist, args.urls)
+
+    elif args.command in ["import", "ingest", "fetch"]:
+        orchestrator.cmd_import_playlist(args.source, args.playlist_name)
+
+    elif args.command in ["rm", "remove", "del", "delete"]:
         orchestrator.cmd_remove_playlist(args.playlist_name)
 
-    elif args.command == "mv":
+    elif args.command in ["mv", "rename", "move"]:
         orchestrator.cmd_rename_playlist(args.old_name, args.new_name)
 
-    elif args.command == "update":
-        flags_info = (
-            f"Meta-only: {args.meta_only}, "
-            f"No-thumb: {args.no_thumb}, "
-            f"Retry-dead: {args.retry_dead}, "
-            f"Offline: {args.offline}"
-        )
-
-        if args.playlist:
-            print(
-                f"[ACTION] Updating specific playlist: {args.playlist} | Flags: {flags_info} | Concurrency: {args.concurrency or 'default'}"
-            )
-            orchestrator.cmd_update_playlist(
-                args.playlist,
-                args.meta_only,
-                args.no_thumb,
-                args.retry_dead,
-                args.offline,
-                args.concurrency,
-            )
+    elif args.command in ["update", "sync", "up"]:
+        update_opts = vars(args)
+        playlist = update_opts.pop("playlist")
+        update_opts.pop("command")
+        if playlist:
+            orchestrator.cmd_update_playlist(playlist, **update_opts)
         else:
-            print(
-                f"[ACTION] Updating ALL playlists globally | Flags: {flags_info} | Concurrency: {args.concurrency or 'default'}"
-            )
-            orchestrator.cmd_update_all(
-                args.meta_only,
-                args.no_thumb,
-                args.retry_dead,
-                args.offline,
-                args.concurrency,
-            )
+            orchestrator.cmd_update_all(**update_opts)
 
     return 0
 

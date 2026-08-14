@@ -11,7 +11,6 @@ from rich.table import Table
 
 CONSOLE = Console()
 
-
 def format_bytes(size_in_bytes: int) -> str:
     """Converts a byte integer into a human-readable file size string."""
     for unit in ["B", "KB", "MB", "GB", "TB"]:
@@ -24,7 +23,6 @@ def format_bytes(size_in_bytes: int) -> str:
         size_in_bytes /= 1024.0
 
     return f"{size_in_bytes:.2f} PB"
-
 
 def list_all(
     names: list[str],
@@ -55,7 +53,6 @@ def list_all(
         )
 
     CONSOLE.print(table)
-
 
 def list_one(
     pl_name: str,
@@ -88,7 +85,6 @@ def list_one(
 
     CONSOLE.print(table)
 
-
 def create_sync_progress_group():
     """Restores the v8.7.2 dual progress bars with spinners and stylized text."""
     global_progress = Progress(
@@ -109,7 +105,6 @@ def create_sync_progress_group():
     )
 
     return global_progress, item_progress
-
 
 def render_sync_summary(stats: dict, total_tasks: int, playlist_name: str):
     """Restores the old version's fancy colored table & panel summary."""
