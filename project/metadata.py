@@ -17,7 +17,6 @@ def write_audio_metadata(audio_path: Path, data: dict, cover_jpg_path: Path = No
     audio['\xa9lan'] = data.get('language', '-')
     audio['\xa9per'] = data.get('vocalist_vsynth', '-')
 
-
     video_id = data.get('id', '')
     if video_id:
         # Store in standard comment field (Visible in Windows)
@@ -37,7 +36,6 @@ def write_audio_metadata(audio_path: Path, data: dict, cover_jpg_path: Path = No
 
     if delete_thumbnail and cover_jpg_path and cover_jpg_path.exists():
         cover_jpg_path.unlink()
-
 
 def write_audio_thumbnail(audio_path: Path, cover_jpg_path: Path, delete_thumbnail: bool = True):
     if not audio_path.exists():

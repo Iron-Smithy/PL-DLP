@@ -2,6 +2,7 @@ import concurrent.futures
 from datetime import datetime
 from pathlib import Path
 import threading
+import json
 
 from rich.console import Group
 from rich.live import Live
@@ -44,7 +45,6 @@ def cmd_list_all():
 
     ui.list_all(names, track_count, tracks_downloaded, total_sizes)
 
-
 def cmd_list_playlist(playlist_name: str):
     playlist_name = storage.clean_name(playlist_name)
     playlist_path = storage.find_playlist_directory(config.MUSIC_ROOT, playlist_name)
@@ -82,7 +82,6 @@ def cmd_list_playlist(playlist_name: str):
 
     ui.list_one(playlist_name, titles, downloaded, lengths, sizes)
 
-
 def cmd_new_playlist(playlist_name: str):
     playlist_name = (playlist_name or "new-playlist").strip()
     potential_file = Path(playlist_name).expanduser().resolve(strict=False)
@@ -118,6 +117,117 @@ def cmd_new_playlist(playlist_name: str):
 
     ui.CONSOLE.print(f"[green]Created empty playlist: {name}[/]")
 
+def cmd_add_songs(playlist_name: str, sources: list[str]):
+    """Adds single/multiple URLs or links from a file to an existing playlist manifest."""
+    clean_pname = storage.clean_name(playlist_name)
+    p_dir = storage.find_playlist_directory(config.MUSIC_ROOT, clean_pname)
+
+    if not p_dir:
+        ui.CONSOLE.print(f"[red]Error: Playlist '{playlist_name}' not found.[/]")
+        return
+
+    json_path = p_dir / f"{clean_pname.removeprefix("pl-")}.json"
+    if not json_path.exists():
+        ui.CONSOLE.print(f"[red]Error: Manifest '{json_path.name}' missing.[/]")
+        return
+
+    # Expand sources into individual URLs
+    urls_to_add = []
+    for src in sources:
+        src_path = Path(src)
+        if src_path.is_file():
+            content = src_path.read_text(encoding="utf-8").strip()
+            if content.startswith("["):
+                urls_to_add.extend(json.loads(content))
+            else:
+                urls_to_add.extend([line.strip() for line in content.splitlines() if line.strip()])
+        else:
+            urls_to_add.append(src)
+
+    # Process and append tracks
+    for url in urls_to_add:
+        ui.CONSOLE.print(f"[blue]Fetching track metadata:[/] {url}")
+        try:
+            raw_info = downloader.extract_data_from_url(url)
+            song_data = manifest.create_track_entry_from_raw(raw_info, url)
+            manifest.add_track_to_metadata(json_path, song_data)
+            ui.CONSOLE.print(f"[green]Added:[/] {song_data.get('title', 'Unknown')}")
+        except Exception as e:
+            ui.CONSOLE.print(f"[red]Failed to add {url}: {e}[/]")
+
+def cmd_import_playlist(source: str, playlist_name: str = None):
+    """Imports a YouTube/YTM playlist URL or a local JSON/TXT list of links into a new JSON playlist."""
+    src_path = Path(source)
+
+    # Determine base target name & directory
+    default_name = src_path.stem if src_path.is_file() else "imported_playlist"
+    raw_name = playlist_name if playlist_name else default_name
+    clean_pname = storage.clean_name(raw_name)
+
+    p_dir = config.MUSIC_ROOT / clean_pname
+    p_dir.mkdir(parents=True, exist_ok=True)
+    json_path = p_dir / f"{clean_pname}.json"
+
+    # Initialize manifest if it doesn't exist
+    if not json_path.exists():
+        manifest.write_to_json(
+            json_path,
+            {"playlist_name": clean_pname, "total_tracks": 0, "tracks": []},
+        )
+
+    urls_to_process = []
+
+    # Case A: Local File (List of URLs in TXT or JSON)
+    if src_path.is_file():
+        content = src_path.read_text(encoding="utf-8").strip()
+        if content.startswith("["):
+            urls_to_process = json.loads(content)
+        else:
+            urls_to_process = [
+                line.strip() for line in content.splitlines() if line.strip()
+            ]
+
+    # Case B: YouTube Playlist URL
+    else:
+        ui.CONSOLE.print(
+            f"[bold blue]Scraping playlist entries from YouTube:[/] {source}"
+        )
+        urls_to_process = downloader.import_playlist(source, urls_to_process)
+
+    ui.CONSOLE.print(
+        f"[green]Found {len(urls_to_process)} track links to import.[/]"
+    )
+
+    # Extract metadata and write JSON entries
+    for url in urls_to_process:
+        try:
+            ui.CONSOLE.print(f"[blue]Extracting metadata:[/] {url}")
+            # Calls your existing downloader & manifest parser
+            raw_info = downloader.extract_data_from_url(url)
+
+            # Map extracted YouTube data into standard track schema
+            song_data = {
+                "id": raw_info.get("id", config.JSON_FALLBACK_CHAR),
+                "title": raw_info.get("title", config.JSON_FALLBACK_CHAR),
+                "artist": raw_info.get("artist")
+                or raw_info.get("uploader", config.JSON_FALLBACK_CHAR),
+                "url": url,
+                "status": "active",
+                "downloaded": False,
+            }
+
+            manifest.merge_song_info(raw_info, song_data)
+            manifest.add_track_to_metadata(json_path, song_data)
+            ui.CONSOLE.print(
+                f"[green]Added:[/] {song_data.get('title', 'Unknown')}"
+            )
+
+        except Exception as e:
+            ui.CONSOLE.print(f"[red]Failed to import track ({url}): {e}[/]")
+
+    ui.CONSOLE.print(
+        f"\n[bold green]Import complete for '{clean_pname}'![/] Run 'update' to download audio files."
+    )
 
 def cmd_remove_playlist(playlist_name: str):
     playlist_name = playlist_name.strip()
@@ -264,7 +374,6 @@ def _execute_sync_task(
             return "fail"
 
     return "skip"
-
 
 def _process_playlist_sync(
     playlist_dir: Path, flags: dict, concurrency: int | None = None
@@ -428,7 +537,6 @@ def cmd_update_playlist(
         f"Skipped: [blue]{total_stats['skip']}[/] | "
         f"Failures: [red]{total_stats['fail']}[/]"
     )
-
 
 def cmd_update_all(meta_only: bool, no_thumb: bool, retry_dead: bool, offline: bool, concurrency: int | None = None):
     """Wrapper function to update all playlists."""
