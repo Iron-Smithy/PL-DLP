@@ -5,7 +5,6 @@ import argparse
 import orchestrator
 import config
 
-
 def create_parser() -> argparse.ArgumentParser:
     """Creates and configures the CLI argument parser."""
     parser = argparse.ArgumentParser(prog="pl-dlp", description="Playlist Manager")
@@ -60,6 +59,40 @@ def create_parser() -> argparse.ArgumentParser:
     mv_parser.add_argument("old_name", help="Current playlist name")
     mv_parser.add_argument("new_name", help="New playlist name")
 
+    export_parser = subparsers.add_parser("export", help="Export a playlist with compatibility & formatting options")
+    export_parser.add_argument("playlist", help="Name of the playlist to export")
+    export_parser.add_argument(
+        "-o",
+        "--output",
+        default="./exports",
+        help="Destination directory for exported files (default: ./exports)",
+    )
+    export_parser.add_argument(
+        "-f",
+        "--format",
+        choices=["mp3", "m4a", "flac", "wav"],
+        default=None,
+        help="Target audio container format",
+    )
+    export_parser.add_argument("--no-thumb", action="store_true", help="Skip thumbnail image processing")
+    export_parser.add_argument("--no-video", action="store_true", help="Strip video streams from exported tracks")
+    export_parser.add_argument(
+        "--legacy-mp3",
+        action="store_true",
+        help="Enable strict legacy MP3 player mode (ASCII filenames, MP3 format, video stripped)",
+    )
+    export_parser.add_argument(
+        "--max-img-dim",
+        type=int,
+        default=None,
+        help="Maximum pixel dimension for cover art",
+    )
+    export_parser.add_argument(
+        "--zip",
+        action="store_true",
+        help="Compress the exported directory into a ZIP archive",
+    )
+
     # 'update' command
     update_parser = subparsers.add_parser(
         "update", aliases=["sync", "up"], help="Update/Sync playlist"
@@ -79,7 +112,6 @@ def create_parser() -> argparse.ArgumentParser:
     )
 
     return parser
-
 
 def main() -> int:
     parser = create_parser()
@@ -107,17 +139,29 @@ def main() -> int:
     elif args.command in ["mv", "rename", "move"]:
         orchestrator.cmd_rename_playlist(args.old_name, args.new_name)
 
+    elif args.command == "export":
+        orchestrator.cmd_export_playlist(
+            playlist_name=args.playlist,
+            output_dir=args.output,
+            target_format=args.format,
+            no_thumb=args.no_thumb,
+            no_video=args.no_video,
+            legacy_mp3_mode=args.legacy_mp3,
+            max_img_dim=args.max_img_dim,
+            zip_output=args.zip,
+        )
+
     elif args.command in ["update", "sync", "up"]:
         update_opts = vars(args)
         playlist = update_opts.pop("playlist")
         update_opts.pop("command")
+        
         if playlist:
             orchestrator.cmd_update_playlist(playlist, **update_opts)
         else:
             orchestrator.cmd_update_all(**update_opts)
 
     return 0
-
 
 if __name__ == "__main__":
     try:
