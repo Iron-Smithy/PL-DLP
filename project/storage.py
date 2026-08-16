@@ -22,7 +22,7 @@ def find_playlist_directories(base_music_dir: Path) -> list[Path]:
     
     return playlist_directories
 
-def clean_name(playlist_name: str) -> str:
+def clean_playlist_name(playlist_name: str) -> str:
     if not playlist_name:
         raise ValueError("Not a valid name")
     clean_name = playlist_name.strip().lower()
@@ -30,20 +30,12 @@ def clean_name(playlist_name: str) -> str:
         clean_name = clean_name[3:]
     return f"pl-{clean_name}"
 
-def get_file_size(file_path: Path) -> int:
-    return file_path.stat().st_size
+def clean_json_name(playlist_name: str) -> str:
+    playlist_name = clean_playlist_name(playlist_name)
+    return playlist_name.removeprefix("pl-")
 
-def get_directory_size(file_paths: list[Path]) -> int:
-    return sum(get_file_size(file_path) for file_path in file_paths)
-
-def make_file(file_path: Path):
-    file_path.touch()
-
-def make_directory(directory_path: Path, parents: bool = False, exists_ok: bool = True):
-    directory_path.mkdir(parents=parents, exist_ok=exists_ok)
-
-def move(to_move: Path, target: Path):
-    shutil.move(to_move, target)
+def generate_json_path(playlist_dir: Path, playlist_name: str):
+    return playlist_dir / (playlist_name + ".json")
 
 def find_playlist_directory(base_music_dir: Path, playlist_name: str, create_if_missing: bool = False) -> Optional[Path]:
     """
@@ -57,7 +49,7 @@ def find_playlist_directory(base_music_dir: Path, playlist_name: str, create_if_
             return None
 
     # Normalizes the name to ensure it starts with 'pl-'
-    target_name = clean_name(playlist_name)
+    target_name = clean_playlist_name(playlist_name)
 
     playlist_path = base_music_dir / target_name
 
@@ -100,7 +92,7 @@ def separate_json_manifest_paths(playlist_directories: Union[Path, list[Path]]) 
     manifests = []
     for playlist_dir in playlist_directories:
         # Generate the expected JSON file name based on the directory name
-        json_path = playlist_dir / (playlist_dir.name.removeprefix("pl-") + ".json")
+        json_path = generate_json_path(playlist_dir, clean_json_name(playlist_dir.name))
         
         if json_path.exists():
             manifests.append(json_path)
@@ -141,3 +133,34 @@ def get_media_duration(file_path: str) -> str:
         return f"{mins}:{secs:02d}"
     except Exception:
         return "N/A"
+
+def copy_file(src: Path, dest: Path):
+    """Copies a file preserving file metadata."""
+    shutil.copy2(src, dest)
+
+def remove_directory_tree(directory_path: Path):
+    """Recursively deletes a directory and all of its contents."""
+    if directory_path.exists():
+        shutil.rmtree(directory_path)
+
+def create_zip_archive(output_base_path: Union[str, Path], root_dir: Path) -> Path:
+    """Creates a ZIP archive of a directory and returns the path to the created archive."""
+    archive_path = shutil.make_archive(
+        str(output_base_path), "zip", str(root_dir)
+    )
+    return Path(archive_path)
+
+def get_file_size(file_path: Path) -> int:
+    return file_path.stat().st_size
+
+def get_directory_size(file_paths: list[Path]) -> int:
+    return sum(get_file_size(file_path) for file_path in file_paths)
+
+def make_file(file_path: Path):
+    file_path.touch()
+
+def make_directory(directory_path: Path, parents: bool = False, exists_ok: bool = True):
+    directory_path.mkdir(parents=parents, exist_ok=exists_ok)
+
+def move(to_move: Path, target: Path):
+    shutil.move(to_move, target)

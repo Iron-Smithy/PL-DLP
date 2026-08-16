@@ -46,7 +46,7 @@ def cmd_list_all():
     ui.list_all(names, track_count, tracks_downloaded, total_sizes)
 
 def cmd_list_playlist(playlist_name: str):
-    playlist_name = storage.clean_name(playlist_name)
+    playlist_name = storage.clean_playlist_name(playlist_name)
     playlist_path = storage.find_playlist_directory(config.MUSIC_ROOT, playlist_name)
 
     if not playlist_path:
@@ -87,7 +87,7 @@ def cmd_new_playlist(playlist_name: str):
     potential_file = Path(playlist_name).expanduser().resolve(strict=False)
 
     if potential_file.is_file() and potential_file.suffix.lower() == ".json":
-        playlist_name = storage.clean_name(potential_file.stem)
+        playlist_name = storage.clean_playlist_name(potential_file.stem)
         new_dir = config.MUSIC_ROOT / playlist_name
 
         if new_dir.exists():
@@ -97,36 +97,36 @@ def cmd_new_playlist(playlist_name: str):
         storage.make_directory(new_dir, parents=True)
         storage.make_directory(new_dir / "music")
 
-        clean_json_name = playlist_name.removeprefix("pl-")
-        target_json = new_dir / f"{clean_json_name}.json"
+        clean_json_name = storage.clean_json_name(playlist_name)
+        target_json = storage.generate_json_path(new_dir, clean_json_name)
         storage.move(str(potential_file), str(target_json))
 
         ui.CONSOLE.print(f"[green]Manifest moved![/] Folder {playlist_name} is ready.")
         return
 
-    name = storage.clean_name(Path(playlist_name).expanduser().name)
+    name = storage.clean_playlist_name(Path(playlist_name).expanduser().name)
     path = config.MUSIC_ROOT / name
     if path.exists():
         ui.CONSOLE.print(f"[red]Error: {name} already exists.[/]")
         return
 
-    clean_json_name = name.removeprefix("pl-")
+    clean_json_name = storage.clean_json_name(name)
     storage.make_directory(path)
     storage.make_directory(path / "music")
-    storage.make_file(path / f"{clean_json_name}.json")
+    storage.make_file(storage.generate_json_path(path, clean_json_name))
 
     ui.CONSOLE.print(f"[green]Created empty playlist: {name}[/]")
 
 def cmd_add_songs(playlist_name: str, sources: list[str]):
     """Adds single/multiple URLs or links from a file to an existing playlist manifest."""
-    clean_pname = storage.clean_name(playlist_name)
-    p_dir = storage.find_playlist_directory(config.MUSIC_ROOT, clean_pname)
+    clean_pl_name = storage.clean_playlist_name(playlist_name)
+    p_dir = storage.find_playlist_directory(config.MUSIC_ROOT, clean_pl_name)
 
     if not p_dir:
         ui.CONSOLE.print(f"[red]Error: Playlist '{playlist_name}' not found.[/]")
         return
 
-    json_path = p_dir / f"{clean_pname.removeprefix("pl-")}.json"
+    json_path = storage.generate_json_path(p_dir, clean_pl_name)
     if not json_path.exists():
         ui.CONSOLE.print(f"[red]Error: Manifest '{json_path.name}' missing.[/]")
         return
@@ -162,17 +162,17 @@ def cmd_import_playlist(source: str, playlist_name: str = None):
     # Determine base target name & directory
     default_name = src_path.stem if src_path.is_file() else "imported_playlist"
     raw_name = playlist_name if playlist_name else default_name
-    clean_pname = storage.clean_name(raw_name)
+    clean_pl_name = storage.clean_playlist_name(raw_name)
 
-    p_dir = config.MUSIC_ROOT / clean_pname
+    p_dir = config.MUSIC_ROOT / clean_pl_name
     p_dir.mkdir(parents=True, exist_ok=True)
-    json_path = p_dir / f"{clean_pname}.json"
+    json_path = storage.generate_json_path(p_dir, clean_pl_name)
 
     # Initialize manifest if it doesn't exist
     if not json_path.exists():
         manifest.write_to_json(
             json_path,
-            {"playlist_name": clean_pname, "total_tracks": 0, "tracks": []},
+            {"playlist_name": clean_pl_name, "total_tracks": 0, "tracks": []},
         )
 
     urls_to_process = []
@@ -226,7 +226,7 @@ def cmd_import_playlist(source: str, playlist_name: str = None):
             ui.CONSOLE.print(f"[red]Failed to import track ({url}): {e}[/]")
 
     ui.CONSOLE.print(
-        f"\n[bold green]Import complete for '{clean_pname}'![/] Run 'update' to download audio files."
+        f"\n[bold green]Import complete for '{clean_pl_name}'![/] Run 'update' to download audio files."
     )
 
 def cmd_remove_playlist(playlist_name: str):
@@ -247,10 +247,9 @@ def cmd_remove_playlist(playlist_name: str):
             return
         ui.CONSOLE.print(f"[yellow]{playlist_name} moved to {config.TRASH}[/]")
 
-
 def cmd_rename_playlist(old_name: str, new_name: str):
-    old_name = storage.clean_name(old_name)
-    new_name = storage.clean_name(new_name)
+    old_name = storage.clean_playlist_name(old_name)
+    new_name = storage.clean_playlist_name(new_name)
     old_path = config.MUSIC_ROOT / old_name
     new_path = config.MUSIC_ROOT / new_name
 
@@ -268,6 +267,99 @@ def cmd_rename_playlist(old_name: str, new_name: str):
         return
 
     ui.CONSOLE.print(f"[green]Successfully renamed {old_name} to {new_name}[/]")
+
+def cmd_export_playlist(
+    playlist_name: str,
+    output_dir: str | Path,
+    target_format: str | None = None,
+    no_thumb: bool = False,
+    no_video: bool = False,
+    legacy_mp3_mode: bool = False,
+    max_img_dim: int | None = None,
+    zip_output: bool = False,
+):
+    """Exports and processes playlist files"""
+    clean_pname = storage.clean_playlist_name(playlist_name)
+    p_dir = storage.find_playlist_directory(config.MUSIC_ROOT, clean_pname)
+
+    if not p_dir:
+        ui.CONSOLE.print(
+            f"[red]Error: Playlist '{playlist_name}' not found.[/]"
+        )
+        return
+
+    out_path = Path(output_dir).expanduser().resolve() / clean_pname
+    storage.make_directory(out_path, parents=True)
+
+    json_paths = storage.separate_json_manifest_paths(p_dir)
+    if not json_paths:
+        ui.CONSOLE.print(
+            f"[red]Error: Manifest for '{clean_pname}' not found.[/]"
+        )
+        return
+
+    data = manifest.load_json_manifest(json_paths[0])
+    songs = data.get("songs", data.get("tracks", []))
+
+    strict_ascii = legacy_mp3_mode
+    export_fmt = "mp3" if legacy_mp3_mode else (target_format or "m4a")
+    strip_video = no_video or legacy_mp3_mode
+
+    ui.CONSOLE.print(
+        f"[cyan]Exporting '{clean_pname}' to {out_path}...[/]"
+    )
+
+    for song in songs:
+        title = song.get("title", "Unknown")
+        safe_name = exporter.sanitize_filename(
+            title, strict_ascii=strict_ascii
+        )
+
+        # Locate original track audio or video file
+        src_file = None
+        for ext in (
+            config.AUDIO_EXT,
+            config.VIDEO_EXT,
+            ".mp3",
+            ".m4a",
+            ".webm",
+        ):
+            candidate = p_dir / "music" / f"{title}{ext}"
+            if candidate.exists():
+                src_file = candidate
+                break
+
+        if not src_file:
+            continue
+
+        target_file = out_path / f"{safe_name}.{export_fmt}"
+
+        # Re-encode or copy via storage
+        if src_file.suffix.lstrip(".") != export_fmt or strip_video:
+            exporter.convert_media(
+                src_file,
+                target_file,
+                target_format=export_fmt,
+                strip_video=strip_video,
+            )
+        else:
+            storage.copy_file(src_file, target_file)
+
+        # Handle thumbnail downscaling if requested
+        if not no_thumb and max_img_dim:
+            thumb_file = out_path / f"{safe_name}.jpg"
+            if thumb_file.exists():
+                exporter.adjust_image_quality(
+                    thumb_file, max_dimension=max_img_dim
+                )
+
+    if zip_output:
+        archive_base = out_path.parent / f"{clean_pname}_export"
+        zip_file = storage.create_zip_archive(archive_base, out_path)
+        storage.remove_directory_tree(out_path)
+        ui.CONSOLE.print(f"[green]Export successfully zipped to:[/] {zip_file}")
+    else:
+        ui.CONSOLE.print(f"[green]Export complete at:[/] {out_path}")
 
 def ensure_extension(path: Path, extension: str) -> Path:
     extension = extension if extension.startswith(".") else f".{extension}"
@@ -508,10 +600,10 @@ def cmd_update_playlist(
     }
 
     if playlist_name:
-        clean_pname = storage.clean_name(playlist_name)
-        target_dir = storage.find_playlist_directory(config.MUSIC_ROOT, clean_pname)
+        clean_pl_name = storage.clean_playlist_name(playlist_name)
+        target_dir = storage.find_playlist_directory(config.MUSIC_ROOT, clean_pl_name)
         if not target_dir:
-            ui.CONSOLE.print(f"[red]Error: Playlist '{clean_pname}' not found.[/]")
+            ui.CONSOLE.print(f"[red]Error: Playlist '{clean_pl_name}' not found.[/]")
             return
         targets = [target_dir]
     else:
