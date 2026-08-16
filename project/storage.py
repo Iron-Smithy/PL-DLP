@@ -4,6 +4,8 @@ from mutagen.mp4 import MP4, MP4Cover
 from pathlib import Path
 import shutil
 import tempfile
+import stat
+import time
 from datetime import datetime
 from typing import Optional, Union
 
@@ -138,10 +140,31 @@ def copy_file(src: Path, dest: Path):
     """Copies a file preserving file metadata."""
     shutil.copy2(src, dest)
 
-def remove_directory_tree(directory_path: Path):
-    """Recursively deletes a directory and all of its contents."""
-    if directory_path.exists():
-        shutil.rmtree(directory_path)
+def remove_directory_tree(directory_path: Path, retries: int = 5, delay: float = 0.3):
+    """Recursively deletes a directory tree"""
+    if not directory_path.exists():
+        return
+
+    def _handle_remove_readonly(func, path, exc):
+        # Clear read-only attribute if set
+        os.chmod(path, stat.S_IWRITE)
+        try:
+            func(path)
+        except Exception:
+            pass
+
+    for attempt in range(retries):
+        try:
+            # Works across Python 3.12+ (onexc) and older versions (onerror)
+            if hasattr(shutil, "rmtree"):
+                shutil.rmtree(directory_path, onexc=_handle_remove_readonly)
+            return
+        except PermissionError:
+            if attempt < retries - 1:
+                time.sleep(delay)
+            else:
+                # Final attempt ignoring non-critical cleanup errors
+                shutil.rmtree(directory_path, ignore_errors=True)
 
 def create_zip_archive(output_base_path: Union[str, Path], root_dir: Path) -> Path:
     """Creates a ZIP archive of a directory and returns the path to the created archive."""
