@@ -305,6 +305,13 @@ def cmd_export_playlist(
     export_fmt = "mp3" if legacy_mp3_mode else (target_format or "m4a")
     strip_video = no_video or legacy_mp3_mode
 
+    # Auto-cap thumbnails to 500x500 in legacy mode if no explicit max dimension was passed
+    effective_max_dim = (
+        max_img_dim
+        if max_img_dim is not None
+        else (500 if legacy_mp3_mode else None)
+    )
+
     ui.CONSOLE.print(
         f"[cyan]Exporting '{clean_pname}' to {out_path}...[/]"
     )
@@ -334,7 +341,7 @@ def cmd_export_playlist(
 
         target_file = out_path / f"{safe_name}.{export_fmt}"
 
-        # Re-encode or copy via storage
+        # Convert or copy audio file
         if src_file.suffix.lstrip(".") != export_fmt or strip_video:
             exporter.convert_media(
                 src_file,
@@ -345,13 +352,33 @@ def cmd_export_playlist(
         else:
             storage.copy_file(src_file, target_file)
 
-        # Handle thumbnail downscaling if requested
-        if not no_thumb and max_img_dim:
-            thumb_file = out_path / f"{safe_name}.jpg"
-            if thumb_file.exists():
-                exporter.adjust_image_quality(
-                    thumb_file, max_dimension=max_img_dim
-                )
+        # Process and embed thumbnail unless --no-thumb is explicitly passed
+        if not no_thumb:
+            thumb_dest = out_path / f"{safe_name}.jpg"
+            
+            # Check if the image exists locally
+            thumb_src = p_dir / "music" / f"{title}_thumb.jpg"
+            if not thumb_src.exists():
+                thumb_src = p_dir / "music" / f"{title}.jpg"
+
+            # Copy local file or re-download from JSON manifest URL
+            if thumb_src.exists():
+                storage.copy_file(thumb_src, thumb_dest)
+            elif song.get("thumbnail_url"):
+                try:
+                    downloader.download_thumbnail(song["thumbnail_url"], thumb_dest)
+                except Exception:
+                    pass
+
+            # Resize and embed if successfully acquired
+            if thumb_dest.exists():
+                if effective_max_dim:
+                    exporter.adjust_image_quality(
+                        thumb_dest, max_dimension=effective_max_dim
+                    )
+
+                if export_fmt == "mp3":
+                    exporter.embed_mp3_cover(target_file, thumb_dest)
 
     if zip_output:
         archive_base = out_path.parent / f"{clean_pname}_export"

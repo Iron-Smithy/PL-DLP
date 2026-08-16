@@ -5,6 +5,7 @@ import subprocess
 import zipfile
 from pathlib import Path
 from PIL import Image
+from mutagen.id3 import APIC, ID3, ID3NoHeaderError
 
 import config
 
@@ -49,3 +50,29 @@ def convert_media(
 
     cmd.append(str(output_path))
     subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+def embed_mp3_cover(mp3_path: Path, cover_jpg_path: Path):
+    """Embeds a JPG image directly into the MP3 ID3 metadata tag using ID3v2.3 for increased compatibility."""
+    if not mp3_path.exists() or not cover_jpg_path.exists():
+        return
+
+    try:
+        try:
+            tags = ID3(mp3_path)
+        except ID3NoHeaderError:
+            tags = ID3()
+
+        with open(cover_jpg_path, "rb") as img:
+            tags.add(
+                APIC(
+                    encoding=0,  # ISO-8859-1 / Latin-1 required for ID3v2.3 compatibility
+                    mime="image/jpeg",
+                    type=3,  # Front Cover
+                    desc="Cover",
+                    data=img.read(),
+                )
+            )
+
+        tags.save(mp3_path, v2_version=3)
+    except Exception as e:
+        print(f"Failed to embed cover art: {e}")
