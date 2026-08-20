@@ -1,6 +1,7 @@
 from pathlib import Path
-import os
 import re
+import json
+import sys
 
 ISO_MAP = {
     "english": "eng", 
@@ -76,9 +77,27 @@ YOUTUBE_ISO_MAP = {
     "ja": "jpn"        # Japanese
 }
 
-AUDIO_EXT = ".m4a"
-VIDEO_EXT = ".mp4"
+APP_DIR = Path(__file__).parent.resolve()
+CONFIG_FILE = APP_DIR / "config.json"
 
+def _load_user_config() -> dict:
+    if CONFIG_FILE.exists():
+        try:
+            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"[Warning] Failed to read config.json: {e}", file=sys.stderr)
+    
+    # Default fallback values if installer hasn't run yet
+    return {
+        "music_root": str(Path.home() / "Music" / "pl-dlp"),
+        "project_root": str(APP_DIR)
+    }
+
+_user_cfg = _load_user_config()
+
+# PROGRAM_ROOT = Path(_user_cfg.get("project_root", APP_DIR))
+# MUSIC_ROOT = Path(_user_cfg.get("music_root", Path.home() / "Music" / "pl-dlp")) # !!! swap on release
 PROGRAM_ROOT = Path("C:/Users/ivank/OneDrive/Desktop/My Code/Projects/Pl-dlp - 2/project")
 MUSIC_ROOT = Path("C:/Users/ivank/OneDrive/Desktop/My Code/Projects/Pl-dlp - 2/musicDir")
 
@@ -86,6 +105,8 @@ TRASH = MUSIC_ROOT / ".trash"
 BACKUP = MUSIC_ROOT / ".backups"
 LOG = MUSIC_ROOT / ".log.txt"
 
+AUDIO_EXT = ".m4a"
+VIDEO_EXT = ".mp4"
 PLAYLIST_HEADER = "pl-"
 JSON_FALLBACK_CHAR = "-"
 DEFAULT_CONCURRENT_DOWNLOADS = 4
