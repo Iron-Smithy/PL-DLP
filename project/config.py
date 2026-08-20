@@ -1,5 +1,6 @@
 from pathlib import Path
-import shutil
+import os
+import re
 
 ISO_MAP = {
     "english": "eng", 
@@ -81,8 +82,6 @@ VIDEO_EXT = ".mp4"
 PROGRAM_ROOT = Path("C:/Users/ivank/OneDrive/Desktop/My Code/Projects/Pl-dlp - 2/project")
 MUSIC_ROOT = Path("C:/Users/ivank/OneDrive/Desktop/My Code/Projects/Pl-dlp - 2/musicDir")
 
-PLAYLIST_ROOT = MUSIC_ROOT
-
 TRASH = MUSIC_ROOT / ".trash"
 BACKUP = MUSIC_ROOT / ".backups"
 LOG = MUSIC_ROOT / ".log.txt"
@@ -90,3 +89,7 @@ LOG = MUSIC_ROOT / ".log.txt"
 PLAYLIST_HEADER = "pl-"
 JSON_FALLBACK_CHAR = "-"
 DEFAULT_CONCURRENT_DOWNLOADS = 4
+
+URL_REGEX = re.compile(
+    r"https?://(?:www\.)?(?:youtube\.com/(?:watch\?v=|embed/|v/|shorts/)|youtu\.be/)[a-zA-Z0-9_-]+"
+)
