@@ -81,12 +81,20 @@ def main():
         json.dump(config_payload, f, indent=4)
     print(f"[Success] Generated config at {config_file}")
 
-    # Install Dependencies into Target Python Environment
+    # Verify or Install Python Dependencies
     print("\nChecking Python dependencies...")
-    required_modules = ["yt_dlp", "mutagen", "PIL", "rich"]
+    
+    # Map import names to pip package names
+    module_to_pip = {
+        "yt_dlp": "yt-dlp",
+        "mutagen": "mutagen",
+        "PIL": "Pillow",
+        "rich": "rich"
+    }
+
     missing_modules = []
 
-    for mod in required_modules:
+    for mod in module_to_pip.keys():
         try:
             __import__(mod)
         except ImportError:
@@ -95,15 +103,34 @@ def main():
     if not missing_modules:
         print("[Success] All required dependencies are already installed!")
     else:
-        print(f"[Info] Missing modules: {', '.join(missing_modules)}. Attempting pip install...")
-        # Map module names to pip package names if needed
-        pip_packages = ["yt-dlp", "mutagen", "Pillow", "rich"]
+        # Determine exact missing pip package names
+        missing_pip_packages = [module_to_pip[m] for m in missing_modules]
+        print(f"[Info] Missing modules: {', '.join(missing_modules)}")
+        print(f"[Info] Attempting standard pip install for: {', '.join(missing_pip_packages)}...")
+        
         try:
-            subprocess.run([python_exe, "-m", "pip", "install"] + pip_packages, check=True)
+            # Try standard pip install first
+            subprocess.run([python_exe, "-m", "pip", "install"] + missing_pip_packages, check=True)
             print("[Success] Dependencies installed via pip.")
         except subprocess.CalledProcessError:
-            print("[Warning] Could not install missing packages via pip.")
-            print("If you are on Linux, install them using your package manager (e.g., apt install python3-yt-dlp).")
+            print("\n[Warning] Standard pip install failed (your OS uses an externally managed environment).")
+            print("To install directly via pip, Python requires the '--break-system-packages' flag.")
+            
+            user_choice = input("Would you like to install using '--break-system-packages'? (y/N): ").strip().lower()
+            
+            if user_choice in ["y", "yes"]:
+                try:
+                    subprocess.run(
+                        [python_exe, "-m", "pip", "install"] + missing_pip_packages + ["--break-system-packages"],
+                        check=True
+                    )
+                    print("[Success] Dependencies installed via pip.")
+                except subprocess.CalledProcessError as e:
+                    print(f"[Error] Failed to install packages via pip: {e}")
+            else:
+                print("\n[Notice] Skipping pip installation.")
+                print("Please install the missing dependencies manually using your system package manager:")
+                print(f"  Missing Packages: {', '.join(missing_pip_packages)}")
 
     # Global Command Setup
     print("\n***REMOVED*** Creating Global Executable Launcher ***REMOVED***")
