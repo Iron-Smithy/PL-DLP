@@ -1,13 +1,8 @@
-import os
 import re
-import shutil
 import subprocess
-import zipfile
 from pathlib import Path
 from PIL import Image
 from mutagen.id3 import APIC, ID3, ID3NoHeaderError
-
-import config
 
 # Strips illegal OS characters: < > : " / \ | ? * and control codes
 ILLEGAL_CHAR_REGEX = re.compile(r'[<>:"/\\|?*\x00-\x1f]')

@@ -20,7 +20,7 @@ def write_audio_metadata(audio_path: Path, data: dict, cover_jpg_path: Path = No
     video_id = data.get('id', '')
     if video_id:
         # Store in standard comment field (Visible in Windows)
-        audio['/xa9cmt'] = f"YouTube ID: {video_id}"
+        audio['\xa9cmt'] = f"YouTube ID: {video_id}"
         
         # Store in a hidden custom iTunes atom (Clean database style)
         id_bytes = video_id.encode('utf-8')

@@ -1,6 +1,5 @@
 import os
-import json
-from mutagen.mp4 import MP4, MP4Cover
+from mutagen.mp4 import MP4
 from pathlib import Path
 import shutil
 import tempfile

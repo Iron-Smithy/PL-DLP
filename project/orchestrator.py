@@ -155,6 +155,33 @@ def cmd_add_songs(playlist_name: str, sources: list[str]):
         except Exception as e:
             ui.CONSOLE.print(f"[red]Failed to add {url}: {e}[/]")
 
+def extract_urls_from_file(src_path: Path) -> list[str]:
+    content = src_path.read_text(encoding="utf-8").strip()
+
+    # Pure JSON format
+    if content.startswith("["):
+        try:
+            parsed = json.loads(content)
+            if isinstance(parsed, list):
+                return [
+                    str(url).strip() for url in parsed if isinstance(url, str)
+                ]
+        except json.JSONDecodeError:
+            pass  # Fall back to regex extraction if JSON parsing fails
+
+    # TXT playlists, raw link dumps, or unstructured text
+    found_urls = config.URL_REGEX.findall(content)
+
+    # Deduplicate while preserving order
+    seen = set()
+    unique_urls = []
+    for url in found_urls:
+        if url not in seen:
+            seen.add(url)
+            unique_urls.append(url)
+
+    return unique_urls
+
 def cmd_import_playlist(source: str, playlist_name: str = None):
     """Imports a YouTube/YTM playlist URL or a local JSON/TXT list of links into a new JSON playlist."""
     src_path = Path(source)
@@ -164,28 +191,11 @@ def cmd_import_playlist(source: str, playlist_name: str = None):
     raw_name = playlist_name if playlist_name else default_name
     clean_pl_name = storage.clean_playlist_name(raw_name)
 
-    p_dir = config.MUSIC_ROOT / clean_pl_name
-    p_dir.mkdir(parents=True, exist_ok=True)
-    json_path = storage.generate_json_path(p_dir, clean_pl_name)
-
-    # Initialize manifest if it doesn't exist
-    if not json_path.exists():
-        manifest.write_to_json(
-            json_path,
-            {"playlist_name": clean_pl_name, "total_tracks": 0, "tracks": []},
-        )
-
     urls_to_process = []
 
     # Case A: Local File (List of URLs in TXT or JSON)
     if src_path.is_file():
-        content = src_path.read_text(encoding="utf-8").strip()
-        if content.startswith("["):
-            urls_to_process = json.loads(content)
-        else:
-            urls_to_process = [
-                line.strip() for line in content.splitlines() if line.strip()
-            ]
+        urls_to_process = extract_urls_from_file(src_path)
 
     # Case B: YouTube Playlist URL
     else:
@@ -194,30 +204,41 @@ def cmd_import_playlist(source: str, playlist_name: str = None):
         )
         urls_to_process = downloader.import_playlist(source, urls_to_process)
 
+    # Abort early if 0 valid track links were found (Prevents creating empty folders)
+    if not urls_to_process:
+        ui.CONSOLE.print(
+            f"[red]No valid YouTube track links found in '{source}'. Aborting import.[/]"
+        )
+        return
+
+    p_dir = config.MUSIC_ROOT / clean_pl_name
+    p_dir.mkdir(parents=True, exist_ok=True)
+    (p_dir / "music").mkdir(parents=True, exist_ok=True)
+
+    json_path = storage.generate_json_path(p_dir, clean_pl_name)
+
+    # Initialize manifest dictionary if missing
+    if not json_path.exists():
+        manifest.write_to_json(
+            json_path,
+            {"playlist_name": clean_pl_name, "total_tracks": 0, "songs": []},
+        )
+
     ui.CONSOLE.print(
         f"[green]Found {len(urls_to_process)} track links to import.[/]"
     )
+
+    imported_count = 0
 
     # Extract metadata and write JSON entries
     for url in urls_to_process:
         try:
             ui.CONSOLE.print(f"[blue]Extracting metadata:[/] {url}")
-            # Calls your existing downloader & manifest parser
             raw_info = downloader.extract_data_from_url(url)
+            song_data = manifest.create_track_entry_from_raw(raw_info, url)
 
-            # Map extracted YouTube data into standard track schema
-            song_data = {
-                "id": raw_info.get("id", config.JSON_FALLBACK_CHAR),
-                "title": raw_info.get("title", config.JSON_FALLBACK_CHAR),
-                "artist": raw_info.get("artist")
-                or raw_info.get("uploader", config.JSON_FALLBACK_CHAR),
-                "url": url,
-                "status": "active",
-                "downloaded": False,
-            }
-
-            manifest.merge_song_info(raw_info, song_data)
             manifest.add_track_to_metadata(json_path, song_data)
+            imported_count += 1
             ui.CONSOLE.print(
                 f"[green]Added:[/] {song_data.get('title', 'Unknown')}"
             )
@@ -225,9 +246,16 @@ def cmd_import_playlist(source: str, playlist_name: str = None):
         except Exception as e:
             ui.CONSOLE.print(f"[red]Failed to import track ({url}): {e}[/]")
 
-    ui.CONSOLE.print(
-        f"\n[bold green]Import complete for '{clean_pl_name}'![/] Run 'update' to download audio files."
-    )
+    # Cleanup directory if all track metadata extractions failed
+    if imported_count == 0:
+        ui.CONSOLE.print(
+            f"[red]Failed to import any tracks. Cleaning up empty playlist folder...[/]"
+        )
+        storage.remove_directory_tree(p_dir)
+    else:
+        ui.CONSOLE.print(
+            f"\n[bold green]Import complete for '{clean_pl_name}'![/] Run 'update' to download audio files."
+        )
 
 def cmd_remove_playlist(playlist_name: str):
     playlist_name = playlist_name.strip()
