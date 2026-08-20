@@ -96,10 +96,8 @@ def _load_user_config() -> dict:
 
 _user_cfg = _load_user_config()
 
-# PROGRAM_ROOT = Path(_user_cfg.get("project_root", APP_DIR))
-# MUSIC_ROOT = Path(_user_cfg.get("music_root", Path.home() / "Music" / "pl-dlp")) # !!! swap on release
-PROGRAM_ROOT = Path("C:/Users/ivank/OneDrive/Desktop/My Code/Projects/Pl-dlp - 2/project")
-MUSIC_ROOT = Path("C:/Users/ivank/OneDrive/Desktop/My Code/Projects/Pl-dlp - 2/musicDir")
+PROGRAM_ROOT = Path(_user_cfg.get("project_root", APP_DIR))
+MUSIC_ROOT = Path(_user_cfg.get("music_root", Path.home() / "Music" / "pl-dlp"))
 
 TRASH = MUSIC_ROOT / ".trash"
 BACKUP = MUSIC_ROOT / ".backups"
