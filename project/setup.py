@@ -46,10 +46,10 @@ def main():
 
     # Collect Paths from User with Sensible Defaults
     if os.name == "nt":
-        default_prog = Path.home() / "AppData" / "Local" / "pl-dlp"
+        default_prog = Path.home() / "AppData" / "Local"
         default_music = Path.home() / "Music" / "pl-dlp"
     else:
-        default_prog = Path.home() / ".local" / "share" / "pl-dlp"
+        default_prog = Path.home() / ".local" / "share"
         default_music = Path.home() / "Music" / "pl-dlp"
 
     print("\nDirectory Configuration")
@@ -82,14 +82,28 @@ def main():
     print(f"[Success] Generated config at {config_file}")
 
     # Install Dependencies into Target Python Environment
-    print("\nInstalling Python dependencies...")
-    try:
-        subprocess.run(
-            [python_exe, "-m", "pip", "install", "yt-dlp", "mutagen", "Pillow", "rich"],
-            check=True
-        )
-    except subprocess.CalledProcessError:
-        print("[Warning] Dependency installation via pip failed. Ensure pip is installed and network is active.")
+    print("\nChecking Python dependencies...")
+    required_modules = ["yt_dlp", "mutagen", "PIL", "rich"]
+    missing_modules = []
+
+    for mod in required_modules:
+        try:
+            __import__(mod)
+        except ImportError:
+            missing_modules.append(mod)
+
+    if not missing_modules:
+        print("[Success] All required dependencies are already installed!")
+    else:
+        print(f"[Info] Missing modules: {', '.join(missing_modules)}. Attempting pip install...")
+        # Map module names to pip package names if needed
+        pip_packages = ["yt-dlp", "mutagen", "Pillow", "rich"]
+        try:
+            subprocess.run([python_exe, "-m", "pip", "install"] + pip_packages, check=True)
+            print("[Success] Dependencies installed via pip.")
+        except subprocess.CalledProcessError:
+            print("[Warning] Could not install missing packages via pip.")
+            print("If you are on Linux, install them using your package manager (e.g., apt install python3-yt-dlp).")
 
     # Global Command Setup
     print("\n***REMOVED*** Creating Global Executable Launcher ***REMOVED***")
