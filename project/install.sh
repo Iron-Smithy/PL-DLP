@@ -2,7 +2,7 @@
 
 set -e
 
-echo "========================================="
+echo "========================================"
 echo "      pl-dlp Linux System Installer     "
 echo "========================================"
 
@@ -19,10 +19,10 @@ elevate() {
 
 # Detect Package Manager and Auto-Install Missing Base Dependencies
 if command -v pacman &> /dev/null; then
-    echo "[Info] Arch Linux detected."
+    echo "[Info] Arch Linux detected. Syncing databases and checking dependencies..."
     elevate pacman -Sy --needed --noconfirm python python-pip ffmpeg python-pillow python-rich python-mutagen yt-dlp
 elif command -v apt &> /dev/null; then
-    echo "[Info] Ubuntu/Debian detected."
+    echo "[Info] Ubuntu/Debian detected. Updating package list..."
     elevate apt update
     elevate apt install -y python3 python3-pip python3-venv ffmpeg python3-pil python3-rich python3-mutagen yt-dlp
 else
