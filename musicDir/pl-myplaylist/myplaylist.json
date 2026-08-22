@@ -1,5 +1,6 @@
 {
     "playlist_name": "pl-myplaylist",
+    "download_video_all": false,
     "total_tracks": 2,
     "songs": [
         {

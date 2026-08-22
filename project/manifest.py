@@ -38,14 +38,25 @@ def get_first_available(data, keys: list[str], default=config.JSON_FALLBACK_CHAR
             return data[key]
     return default
 
+def write_empty_playlist_object(json_path: Path, pl_name: str):
+    write_to_json(
+        json_path,
+        {
+            "playlist_name": pl_name,
+            "download_video_all": False,
+            "total_tracks": 0,
+            "songs": []
+        }
+    )
+
 def create_track_entry_from_raw(raw_data: dict, url: str) -> dict:
     """Extracts YouTube metadata for a URL and returns a complete track dictionary ready for the manifest."""
 
-    # 1. Extract values using downloader helper functions where applicable
+    # Extract values using downloader helper functions where applicable
     pub_date = downloader.get_publish_date(raw_data) if 'downloader' in globals() else config.JSON_FALLBACK_CHAR
     iso_lang = downloader.get_iso_code(raw_data.get("language")) if 'downloader' in globals() else config.JSON_FALLBACK_CHAR
 
-    # 2. Build full base dictionary with extracted metadata
+    # Build full base dictionary with extracted metadata
     song_data = {
         "id": raw_data.get("id", config.JSON_FALLBACK_CHAR),
         "url": url,
@@ -156,8 +167,6 @@ def merge_song_info(song: dict, info: dict) -> bool:
     if song.get("status") not in ("active", "DEAD", "ERR"):
         song["status"] = "active"
         updated = True
-
-    return updated
 
     return updated
 
