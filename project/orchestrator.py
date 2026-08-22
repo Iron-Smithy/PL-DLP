@@ -6,7 +6,7 @@ import json
 
 from rich.console import Group
 from rich.live import Live
-from rich.prompt import Confirm
+from rich.prompt import Confirm, IntPrompt
 
 import config
 import downloader
@@ -113,7 +113,9 @@ def cmd_new_playlist(playlist_name: str):
     clean_json_name = storage.clean_json_name(name)
     storage.make_directory(path)
     storage.make_directory(path / "music")
-    storage.make_file(storage.generate_json_path(path, clean_json_name))
+    json_path = storage.generate_json_path(path, clean_json_name)
+    storage.make_file(json_path)
+    manifest.write_empty_playlist_object(json_path, clean_json_name)
 
     ui.CONSOLE.print(f"[green]Created empty playlist: {name}[/]")
 
@@ -219,10 +221,7 @@ def cmd_import_playlist(source: str, playlist_name: str = None):
 
     # Initialize manifest dictionary if missing
     if not json_path.exists():
-        manifest.write_to_json(
-            json_path,
-            {"playlist_name": clean_pl_name, "total_tracks": 0, "songs": []},
-        )
+        manifest.write_empty_playlist_object(json_path, clean_pl_name)
 
     ui.CONSOLE.print(
         f"[green]Found {len(urls_to_process)} track links to import.[/]"
@@ -435,7 +434,8 @@ def _execute_sync_task(
     item_task_id=None,
 ) -> str:
     song = task["song"]
-    is_video = bool(song.get("download_video", False))
+    is_video = task["is_video"]
+    album = storage.clean_json_name(task["playlist_name"])
     
     # Resolve exact path on disk depending on audio vs video mode
     target_path = ensure_extension(
@@ -513,6 +513,7 @@ def _execute_sync_task(
                 data=song,
                 cover_jpg_path=thumb_path,
                 delete_thumbnail=True,
+                album=album
             )
             song["status"] = "active"
             return "success"
@@ -535,6 +536,7 @@ def _process_playlist_sync(
     json_path = json_paths[0]
     json_data = manifest.load_json_manifest(json_path)
     desired_songs = json_data.get("songs", [])
+    download_all = bool(json_data.get("download_video_all", False))
 
     music_dir = playlist_dir / "music"
     storage.make_directory(music_dir)
@@ -545,7 +547,7 @@ def _process_playlist_sync(
     tasks = []
     for song in desired_songs:
         title = song.get("title", "Unknown")
-        is_video = bool(song.get("download_video", False))
+        is_video = download_all or bool(song.get("download_video", False))
         ext = config.VIDEO_EXT if is_video else config.AUDIO_EXT
         target_path = music_dir / f"{title}{ext}"
 
@@ -555,9 +557,11 @@ def _process_playlist_sync(
         tasks.append(
             {
                 "song": song,
+                "is_video": is_video,
                 "path": target_path,
                 "action": action,
                 "pl_path": playlist_dir,
+                "playlist_name": playlist_dir.name,
             }
         )
 
@@ -615,7 +619,9 @@ def _process_playlist_sync(
                 task = future_to_task[future]
                 try:
                     res = future.result()
-                except Exception:
+                except Exception as e:
+                    print(f"Error type: {type(e).__name__}")
+                    print(f"Error message: {e}")
                     res = "fail"
 
                 with manifest_lock:
@@ -695,3 +701,76 @@ def cmd_update_all(meta_only: bool, no_thumb: bool, retry_dead: bool, offline: b
         offline=offline,
         concurrency=concurrency,
     )
+
+def cmd_clear_fail(playlist_name: str, song_name: str = None, all_songs: bool = False):
+    clean_pl_name = storage.clean_playlist_name(playlist_name)
+    target_dir = storage.find_playlist_directory(config.MUSIC_ROOT, clean_pl_name)
+    
+    if not target_dir:
+        ui.CONSOLE.print(f"[red]Error: Playlist '{clean_pl_name}' not found.[/]")
+        return
+
+    json_paths = storage.separate_json_manifest_paths(target_dir)
+
+    # Check if the list returned any valid JSON manifest paths
+    if not json_paths:
+        ui.CONSOLE.print(f"[red]Error: No JSON manifest found in '{target_dir}'.[/]")
+        return
+
+    # Extract the single Path object from the list
+    json_path = json_paths[0]
+    
+    json_data = manifest.load_json_manifest(json_path)
+    songs = json_data.get("songs", [])
+
+    if not songs:
+        ui.CONSOLE.print(f"[yellow]No songs found in playlist '{clean_pl_name}'.[/]")
+        return
+
+    targets_to_clear = []
+
+    # Clear all failed statuses
+    if all_songs:
+        targets_to_clear = songs
+
+    # Target specific song by name
+    elif song_name:
+        matches = [
+            s for s in songs 
+            if s.get("title", "").lower() == song_name.lower()
+        ]
+
+        if not matches:
+            ui.CONSOLE.print(f"[yellow]No song matching '{song_name}' found in playlist.[/]")
+            return
+            
+        elif len(matches) == 1:
+            targets_to_clear = matches
+            
+        else:
+            # Disambiguation prompt for duplicate titles
+            ui.CONSOLE.print(f"[yellow]Multiple songs named '{song_name}' found:[/]")
+            for index, song in enumerate(matches, 1):
+                title = song.get("title", "Unknown")
+                song_id = song.get("id", "N/A")
+                ui.CONSOLE.print(f"  [cyan]{index}[/]. {title} [dim]({song_id})[/dim]")
+
+            # Safe integer prompt with validation
+            selected_idx = IntPrompt.ask(
+                "Which song do you want to clear?",
+                choices=[str(i) for i in range(1, len(matches) + 1)]
+            )
+            targets_to_clear = [matches[selected_idx - 1]]
+    else:
+        ui.CONSOLE.print("[red]Error: Must specify a song_name or set all_songs=True.[/]")
+        return
+
+    # Reset failure/status indicators
+    cleared_count = 0
+    for song in targets_to_clear:
+        song["status"] = "active"
+        cleared_count += 1
+
+    # Save manifest back to disk
+    manifest.write_to_json(json_path, json_data)
+    ui.CONSOLE.print(f"[green]Successfully reset failure status for {cleared_count} track(s).[/]")

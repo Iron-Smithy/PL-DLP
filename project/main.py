@@ -1,6 +1,31 @@
 __author__ = "Iron Smithy"
 __version__ = "0.1.0"
 
+import sys  # Built-in module
+
+
+module_to_pip = {
+    "yt_dlp": "yt-dlp",
+    "mutagen": "mutagen",
+    "PIL": "Pillow",
+    "rich": "rich"
+}
+
+missing_modules = []
+
+# Run the dynamic check
+for mod in module_to_pip.keys():
+    try:
+        __import__(mod)
+    except ImportError:
+        missing_modules.append(mod)
+
+# Handle the results
+if missing_modules:
+    missing_pip_packages = [module_to_pip[m] for m in missing_modules]
+    print(f"[Info] Missing modules: {', '.join(missing_modules)}")
+    sys.exit(1)
+
 import argparse
 import orchestrator
 import config
@@ -111,6 +136,22 @@ def create_parser() -> argparse.ArgumentParser:
         "--concurrency", "-j", type=int, default=config.DEFAULT_CONCURRENT_DOWNLOADS, help="Parallel downloads"
     )
 
+    clear_fail = subparsers.add_parser("clear-fail", help="Set songs in a playlist to 'active'")
+
+    clear_fail.add_argument("playlist_name", help="Name of the playlist")
+
+    clear_fail.add_argument(
+        "song_name",
+        nargs="?",
+        help="Name of the song to set active",
+    )
+
+    clear_fail.add_argument(
+        "--all",
+        action="store_true",
+        help="Set all songs in the playlist to active",
+    )
+
     return parser
 
 def main() -> int:
@@ -160,6 +201,21 @@ def main() -> int:
             orchestrator.cmd_update_playlist(playlist, **update_opts)
         else:
             orchestrator.cmd_update_all(**update_opts)
+    
+    elif args.command == "clear-fail":
+        if args.song_name and args.all:
+            parser.error("clear-fail requires either SONG_NAME or --all, not both")
+
+        if not args.song_name and not args.all:
+            parser.error("clear-fail requires either SONG_NAME or --all")
+
+        if args.all:
+            orchestrator.cmd_clear_fail(args.playlist_name, all_songs=True)
+        else:
+            orchestrator.cmd_clear_fail(
+                args.playlist_name,
+                song_name=args.song_name,
+            )
 
     return 0
 
