@@ -1,7 +1,7 @@
 # pl-dlp
 
 > ⚠️ **Work in Progress**
-> This project is currently in active development. Installer scripts have not been heavily tested on Linux and have **never been tested on Windows**. Expect edge cases or potential environment bugs. Manual setup instructions are provided below as a better fallback.
+> This project is currently in active development. Installer scripts have **not** been heavily tested on **Linux or Windows**. Expect edge cases or potential environment bugs. Manual setup instructions are provided below as a better fallback.
 
 `pl-dlp` is a CLI music and playlist manager built on top of `yt-dlp` and `mutagen`. It allows you to organize tracks into JSON file, sync media files based on those JSON files, write metadata directly into M4A files, and export playlists as MP3 intended for older hardware.
 
@@ -51,7 +51,7 @@ Run `installer.ps1` via PowerShell. It verifies Python 3.10+ installation (offer
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass
-.\installer.ps1
+.\install.ps1
 ```
 
 ***REMOVED***
@@ -224,4 +224,12 @@ pl-dlp --help
 pl-dlp update --help
 pl-dlp export --help
 
+```
+
+## Updating pl-dlp
+
+Keep `pl-dlp` up to date with the latest features and `yt-dlp` fixes:
+
+```bash
+pl-dlp update-self
 ```

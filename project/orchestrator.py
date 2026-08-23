@@ -164,25 +164,48 @@ def extract_urls_from_file(src_path: Path) -> list[str]:
     if content.startswith("["):
         try:
             parsed = json.loads(content)
-            if isinstance(parsed, list):
-                return [
-                    str(url).strip() for url in parsed if isinstance(url, str)
-                ]
+            return extract_urls_from_json(parsed)
         except json.JSONDecodeError:
             pass  # Fall back to regex extraction if JSON parsing fails
 
-    # TXT playlists, raw link dumps, or unstructured text
-    found_urls = config.URL_REGEX.findall(content)
+    return extract_youtube_urls(content)
 
+def extract_youtube_urls(text_content: str) -> list[str]:
+    """Finds all YouTube and YouTube Music links and normalizes them."""
+    matches = config.URL_REGEX.findall(text_content)
     # Deduplicate while preserving order
     seen = set()
-    unique_urls = []
-    for url in found_urls:
-        if url not in seen:
-            seen.add(url)
-            unique_urls.append(url)
+    clean_urls = []
+    
+    for video_id in matches:
+        if video_id not in seen:
+            seen.add(video_id)
+            clean_urls.append(f"https://www.youtube.com/watch?v={video_id}")
+            
+    return clean_urls
 
-    return unique_urls
+import json
+
+def extract_urls_from_json(json_data) -> list[str]:
+    """Recursively extracts YouTube URLs/IDs from any JSON structure."""
+    found_urls = []
+    
+    if isinstance(json_data, dict):
+        for key, value in json_data.items():
+            # If the JSON already has a dedicated video ID or URL key
+            if key in ("id", "videoId") and isinstance(value, str) and len(value) == 11:
+                found_urls.append(f"https://www.youtube.com/watch?v={value}")
+            else:
+                found_urls.extend(extract_urls_from_json(value))
+                
+    elif isinstance(json_data, list):
+        for item in json_data:
+            found_urls.extend(extract_urls_from_json(item))
+            
+    elif isinstance(json_data, str):
+        found_urls.extend(extract_youtube_urls(json_data))
+        
+    return list(dict.fromkeys(found_urls))  # Remove duplicates preserving order
 
 def cmd_import_playlist(source: str, playlist_name: str = None):
     """Imports a YouTube/YTM playlist URL or a local JSON/TXT list of links into a new JSON playlist."""
@@ -195,11 +218,11 @@ def cmd_import_playlist(source: str, playlist_name: str = None):
 
     urls_to_process = []
 
-    # Case A: Local File (List of URLs in TXT or JSON)
+    # Local File (List of URLs in TXT or JSON)
     if src_path.is_file():
         urls_to_process = extract_urls_from_file(src_path)
 
-    # Case B: YouTube Playlist URL
+    # YouTube Playlist URL
     else:
         ui.CONSOLE.print(
             f"[bold blue]Scraping playlist entries from YouTube:[/] {source}"
