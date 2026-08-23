@@ -110,5 +110,5 @@ JSON_FALLBACK_CHAR = "-"
 DEFAULT_CONCURRENT_DOWNLOADS = 4
 
 URL_REGEX = re.compile(
-    r"https?://(?:www\.)?(?:youtube\.com/(?:watch\?v=|embed/|v/|shorts/)|youtu\.be/)[a-zA-Z0-9_-]+"
+    r"https?://(?:(?:music|www)\.)?(?:youtube\.com/(?:watch\?v=|embed/|v/|shorts/)|youtu\.be/)([a-zA-Z0-9_-]{11})"
 )

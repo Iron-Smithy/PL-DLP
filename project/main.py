@@ -1,5 +1,5 @@
 __author__ = "Iron Smithy"
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 import sys  # Built-in module
 
@@ -29,6 +29,7 @@ if missing_modules:
 import argparse
 import orchestrator
 import config
+import update_code
 
 def create_parser() -> argparse.ArgumentParser:
     """Creates and configures the CLI argument parser."""
@@ -137,19 +138,21 @@ def create_parser() -> argparse.ArgumentParser:
     )
 
     clear_fail = subparsers.add_parser("clear-fail", help="Set songs in a playlist to 'active'")
-
     clear_fail.add_argument("playlist_name", help="Name of the playlist")
-
     clear_fail.add_argument(
         "song_name",
         nargs="?",
         help="Name of the song to set active",
     )
-
     clear_fail.add_argument(
         "--all",
         action="store_true",
         help="Set all songs in the playlist to active",
+    )
+
+    parser_update_self = subparsers.add_parser(
+        "update-self", 
+        help="Pull the latest code from GitHub and update Python dependencies"
     )
 
     return parser
@@ -216,6 +219,9 @@ def main() -> int:
                 args.playlist_name,
                 song_name=args.song_name,
             )
+
+    if args.command == "update-self":
+        return 0 if update_code.update_application() else 1
 
     return 0
 
