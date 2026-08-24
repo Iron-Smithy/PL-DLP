@@ -1,5 +1,5 @@
 __author__ = "Iron Smithy"
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 
 import sys  # Built-in module
 
@@ -195,16 +195,6 @@ def main() -> int:
             zip_output=args.zip,
         )
 
-    elif args.command in ["update", "sync", "up"]:
-        update_opts = vars(args)
-        playlist = update_opts.pop("playlist")
-        update_opts.pop("command")
-        
-        if playlist:
-            orchestrator.cmd_update_playlist(playlist, **update_opts)
-        else:
-            orchestrator.cmd_update_all(**update_opts)
-    
     elif args.command == "clear-fail":
         if args.song_name and args.all:
             parser.error("clear-fail requires either SONG_NAME or --all, not both")
@@ -219,9 +209,19 @@ def main() -> int:
                 args.playlist_name,
                 song_name=args.song_name,
             )
-
-    if args.command == "update-self":
+        
+    elif args.command == "update-self":
         return 0 if update_code.update_application() else 1
+
+    elif args.command in ["update", "sync", "up"]:
+        update_opts = vars(args).copy()
+        playlist = update_opts.pop("playlist")
+        update_opts.pop("command")
+        
+        if playlist:
+            orchestrator.cmd_update_playlist(playlist, **update_opts)
+        else:
+            orchestrator.cmd_update_all(**update_opts)
 
     return 0
 
