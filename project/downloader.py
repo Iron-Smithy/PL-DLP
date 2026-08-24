@@ -1,7 +1,9 @@
+import io
 import urllib.request
 from datetime import datetime
 from pathlib import Path
 import yt_dlp
+from PIL import Image
 
 import config
 
@@ -71,7 +73,23 @@ def download_thumbnail(thumbnail_url: str, save_path: Path) -> bool:
         return False
 
     try:
-        urllib.request.urlretrieve(thumbnail_url, save_path)
+        request = urllib.request.Request(
+            thumbnail_url,
+            headers={"User-Agent": "Mozilla/5.0"},
+        )
+        with urllib.request.urlopen(request, timeout=30) as response:
+            image_data = response.read()
+
+        save_path.parent.mkdir(parents=True, exist_ok=True)
+        with Image.open(io.BytesIO(image_data)) as image:
+            if image.mode in ("RGBA", "LA"):
+                background = Image.new("RGB", image.size, "white")
+                background.paste(image, mask=image.getchannel("A"))
+                image = background
+            else:
+                image = image.convert("RGB")
+            image.save(save_path, format="JPEG", quality=95)
+
         return save_path.exists()
     except Exception:
         return False

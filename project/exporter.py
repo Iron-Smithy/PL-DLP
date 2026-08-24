@@ -44,7 +44,9 @@ def convert_media(
         cmd.extend(["-c:a", "aac", "-b:a", "192k"])
 
     cmd.append(str(output_path))
-    subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+    if not output_path.exists():
+        raise RuntimeError(f"ffmpeg completed but did not create {output_path}")
 
 def embed_mp3_cover(mp3_path: Path, cover_jpg_path: Path):
     """Embeds a JPG image directly into the MP3 ID3 metadata tag using ID3v2.3 for increased compatibility."""
