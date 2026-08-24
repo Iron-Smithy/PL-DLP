@@ -128,7 +128,8 @@ def cmd_add_songs(playlist_name: str, sources: list[str]):
         ui.CONSOLE.print(f"[red]Error: Playlist '{playlist_name}' not found.[/]")
         return
 
-    json_path = storage.generate_json_path(p_dir, clean_pl_name)
+    clean_json_name = storage.clean_json_name(clean_pl_name)
+    json_path = storage.generate_json_path(p_dir, clean_json_name)
     if not json_path.exists():
         ui.CONSOLE.print(f"[red]Error: Manifest '{json_path.name}' missing.[/]")
         return
@@ -240,7 +241,8 @@ def cmd_import_playlist(source: str, playlist_name: str = None):
     p_dir.mkdir(parents=True, exist_ok=True)
     (p_dir / "music").mkdir(parents=True, exist_ok=True)
 
-    json_path = storage.generate_json_path(p_dir, clean_pl_name)
+    json_name = storage.clean_json_name(clean_pl_name)
+    json_path = storage.generate_json_path(p_dir, json_name)
 
     # Initialize manifest dictionary if missing
     if not json_path.exists():
