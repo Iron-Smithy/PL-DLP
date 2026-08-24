@@ -1,6 +1,16 @@
 from mutagen.mp4 import MP4, MP4Cover
 from pathlib import Path
 
+def has_embedded_cover(audio_path: Path) -> bool:
+    """Returns whether an MP4-family file contains embedded cover art."""
+    if not audio_path.exists():
+        return False
+
+    try:
+        return bool(MP4(audio_path).get("covr"))
+    except Exception:
+        return False
+
 def write_audio_metadata(audio_path: Path, data: dict, cover_jpg_path: Path = None, delete_thumbnail: bool = True, album: str = None):
     """Embeds MP4 metadata atoms and cover art directly into an M4A file."""
     # Ensure audio file exists before opening

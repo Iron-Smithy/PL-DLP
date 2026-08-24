@@ -370,22 +370,18 @@ def cmd_export_playlist(
 
     for song in songs:
         title = song.get("title", "Unknown")
-        safe_name = exporter.sanitize_filename(
-            title, strict_ascii=strict_ascii
-        )
+        safe_name = exporter.sanitize_filename(title, strict_ascii=strict_ascii)
+        stored_name = exporter.sanitize_filename(title)
 
-        # Locate original track audio or video file
+        # Locate files created by both current and older naming schemes.
         src_file = None
-        for ext in (
-            config.AUDIO_EXT,
-            config.VIDEO_EXT,
-            ".mp3",
-            ".m4a",
-            ".webm",
-        ):
-            candidate = p_dir / "music" / f"{title}{ext}"
-            if candidate.exists():
-                src_file = candidate
+        for source_name in dict.fromkeys((safe_name, stored_name, title)):
+            for ext in (config.AUDIO_EXT, config.VIDEO_EXT, ".mp3", ".webm"):
+                candidate = p_dir / "music" / f"{source_name}{ext}"
+                if candidate.exists():
+                    src_file = candidate
+                    break
+            if src_file:
                 break
 
         if not src_file:
@@ -394,24 +390,28 @@ def cmd_export_playlist(
         target_file = out_path / f"{safe_name}.{export_fmt}"
 
         # Convert or copy audio file
-        if src_file.suffix.lstrip(".") != export_fmt or strip_video:
-            exporter.convert_media(
-                src_file,
-                target_file,
-                target_format=export_fmt,
-                strip_video=strip_video,
-            )
-        else:
-            storage.copy_file(src_file, target_file)
+        try:
+            if src_file.suffix.lstrip(".") != export_fmt or strip_video:
+                exporter.convert_media(
+                    src_file,
+                    target_file,
+                    target_format=export_fmt,
+                    strip_video=strip_video,
+                )
+            else:
+                storage.copy_file(src_file, target_file)
+        except Exception as exc:
+            ui.CONSOLE.print(f"[red]Failed to export '{title}': {exc}[/]")
+            continue
 
         # Process and embed thumbnail unless --no-thumb is explicitly passed
         if not no_thumb:
             thumb_dest = out_path / f"{safe_name}.jpg"
             
             # Check if the image exists locally
-            thumb_src = p_dir / "music" / f"{title}_thumb.jpg"
+            thumb_src = p_dir / "music" / f"{safe_name}_thumb.jpg"
             if not thumb_src.exists():
-                thumb_src = p_dir / "music" / f"{title}.jpg"
+                thumb_src = p_dir / "music" / f"{safe_name}.jpg"
 
             # Copy local file or re-download from JSON manifest URL
             if thumb_src.exists():
@@ -431,6 +431,14 @@ def cmd_export_playlist(
 
                 if export_fmt == "mp3":
                     exporter.embed_mp3_cover(target_file, thumb_dest)
+                elif export_fmt == "m4a":
+                    metadata.write_audio_metadata(
+                        audio_path=target_file,
+                        data=song,
+                        cover_jpg_path=thumb_dest,
+                        delete_thumbnail=False,
+                        album=clean_pname,
+                    )
 
     if zip_output:
         archive_base = out_path.parent / f"{clean_pname}_export"
@@ -527,7 +535,12 @@ def _execute_sync_task(
     # 3. Apply media metadata
     if action == "META" and target_path.exists():
         thumb_path = None
-        if not offline and not no_thumb and song.get("thumbnail_url"):
+        if (
+            not offline
+            and not no_thumb
+            and song.get("thumbnail_url")
+            and not metadata.has_embedded_cover(target_path)
+        ):
             temp_thumb = target_path.parent / f"{target_path.stem}_thumb.jpg"
             if downloader.download_thumbnail(song["thumbnail_url"], temp_thumb):
                 thumb_path = temp_thumb
@@ -572,9 +585,10 @@ def _process_playlist_sync(
     tasks = []
     for song in desired_songs:
         title = song.get("title", "Unknown")
+        safe_name = exporter.sanitize_filename(title)
         is_video = download_all or bool(song.get("download_video", False))
         ext = config.VIDEO_EXT if is_video else config.AUDIO_EXT
-        target_path = music_dir / f"{title}{ext}"
+        target_path = music_dir / f"{safe_name}{ext}"
 
         action = "META" if target_path.exists() else "DL"
         songs_on_disk.pop(target_path.name, None)
@@ -647,6 +661,8 @@ def _process_playlist_sync(
                 except Exception as e:
                     print(f"Error type: {type(e).__name__}")
                     print(f"Error message: {e}")
+                    with manifest_lock:
+                        task["song"]["status"] = "DEAD"
                     res = "fail"
 
                 with manifest_lock:
