@@ -126,17 +126,25 @@ def cmd_list_playlist(playlist_name: str):
     songs = manifest_data.get("songs", [])
 
     music_paths = storage.separate_music_paths(playlist_path)[0]
-    downloaded_files = {file.name for file in music_paths}
+    downloaded_files = {file.name: file for file in music_paths}
 
     titles, downloaded, lengths, sizes = [], [], [], []
 
     for song in songs:
         title = song.get("title", "Unknown")
-        file_name = f"{title}{config.AUDIO_EXT}"
-        file_exists = file_name in downloaded_files
+        safe_title = exporter.sanitize_filename(title)
+        file_path = next(
+            (
+                downloaded_files[f"{name}{extension}"]
+                for name in dict.fromkeys((safe_title, title))
+                for extension in (config.AUDIO_EXT, config.VIDEO_EXT)
+                if f"{name}{extension}" in downloaded_files
+            ),
+            None,
+        )
+        file_exists = file_path is not None
 
-        if file_exists:
-            file_path = playlist_path / "music" / file_name
+        if file_path is not None:
             length = storage.get_media_duration(file_path)
             size = storage.get_file_size(file_path)
         else:
