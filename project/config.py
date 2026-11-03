@@ -91,13 +91,23 @@ def _load_user_config() -> dict:
     # Default fallback values if installer hasn't run yet
     return {
         "music_root": str(Path.home() / "Music" / "pl-dlp"),
-        "project_root": str(APP_DIR)
+        "project_root": str(APP_DIR),
+        "manifest_format": "json"
     }
 
 _user_cfg = _load_user_config()
 
 PROGRAM_ROOT = Path(_user_cfg.get("project_root", APP_DIR))
 MUSIC_ROOT = Path(_user_cfg.get("music_root", Path.home() / "Music" / "pl-dlp"))
+MANIFEST_FORMAT = str(_user_cfg.get("manifest_format", "json")).lower().removeprefix(".")
+if MANIFEST_FORMAT == "yml":
+    MANIFEST_FORMAT = "yaml"
+if MANIFEST_FORMAT not in ("json", "yaml"):
+    print(
+        f"[Warning] Unsupported manifest_format '{MANIFEST_FORMAT}' in config.json; using json.",
+        file=sys.stderr,
+    )
+    MANIFEST_FORMAT = "json"
 
 TRASH = MUSIC_ROOT / ".trash"
 BACKUP = MUSIC_ROOT / ".backups"

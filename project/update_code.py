@@ -12,7 +12,7 @@ REPOSITORY = "Iron-Smithy/PL-DLP"
 DEFAULT_BRANCH = "main"
 PROJECT_DIR_NAME = "project"
 FILES_TO_SKIP = {"config.json"}
-DEPENDENCIES = ("yt-dlp", "mutagen", "Pillow", "rich")
+DEPENDENCIES = ("yt-dlp", "mutagen", "Pillow", "rich", "PyYAML")
 
 def _download_project(repository: str, branch: str, destination: Path) -> Path:
 	archive_url = (

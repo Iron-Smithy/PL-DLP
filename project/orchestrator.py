@@ -18,23 +18,24 @@ import ui
 
 def cmd_list_all():
     playlist_directories = storage.find_playlist_directories(config.MUSIC_ROOT)
-    json_directories = storage.separate_json_manifest_paths(playlist_directories)
-    playlist_songs_list: list[list[Path]] = storage.separate_music_paths(playlist_directories)
 
     names = []
     track_count = []
     tracks_downloaded = []
     total_sizes = []
 
-    for i, json_path in enumerate(json_directories):
-        json_data = manifest.load_json_manifest(json_path)
+    for playlist_directory in playlist_directories:
+        manifest_paths = storage.separate_manifest_paths(playlist_directory)
+        if not manifest_paths:
+            continue
+        json_data = manifest.load_manifest(manifest_paths[0])
 
-        song_paths = playlist_songs_list[i]
+        song_paths = storage.separate_music_paths(playlist_directory)[0]
 
         size = storage.get_directory_size(song_paths)
 
         names.append(
-            playlist_directories[i].name
+            playlist_directory.name
             or json_data.get("playlist_name", config.JSON_FALLBACK_CHAR)
         )
         track_count.append(
@@ -53,9 +54,9 @@ def cmd_list_playlist(playlist_name: str):
         ui.CONSOLE.print(f"[red]The playlist {playlist_name} cannot be found[/]")
         return
 
-    json_path = storage.separate_json_manifest_paths(playlist_path)[0]
-    json_data = manifest.load_json_manifest(json_path)
-    songs = json_data.get("songs", [])
+    manifest_path = storage.separate_manifest_paths(playlist_path)[0]
+    manifest_data = manifest.load_manifest(manifest_path)
+    songs = manifest_data.get("songs", [])
 
     music_paths = storage.separate_music_paths(playlist_path)[0]
     downloaded_files = {file.name for file in music_paths}
@@ -82,11 +83,11 @@ def cmd_list_playlist(playlist_name: str):
 
     ui.list_one(playlist_name, titles, downloaded, lengths, sizes)
 
-def cmd_new_playlist(playlist_name: str):
+def cmd_new_playlist(playlist_name: str, manifest_format: str | None = None):
     playlist_name = (playlist_name or "new-playlist").strip()
     potential_file = Path(playlist_name).expanduser().resolve(strict=False)
 
-    if potential_file.is_file() and potential_file.suffix.lower() == ".json":
+    if potential_file.is_file() and potential_file.suffix.lower() in storage.MANIFEST_EXTENSIONS:
         playlist_name = storage.clean_playlist_name(potential_file.stem)
         new_dir = config.MUSIC_ROOT / playlist_name
 
@@ -98,7 +99,7 @@ def cmd_new_playlist(playlist_name: str):
         storage.make_directory(new_dir / "music")
 
         clean_json_name = storage.clean_json_name(playlist_name)
-        target_json = storage.generate_json_path(new_dir, clean_json_name)
+        target_json = new_dir / f"{clean_json_name}{potential_file.suffix.lower()}"
         storage.move(str(potential_file), str(target_json))
 
         ui.CONSOLE.print(f"[green]Manifest moved![/] Folder {playlist_name} is ready.")
@@ -113,9 +114,10 @@ def cmd_new_playlist(playlist_name: str):
     clean_json_name = storage.clean_json_name(name)
     storage.make_directory(path)
     storage.make_directory(path / "music")
-    json_path = storage.generate_json_path(path, clean_json_name)
-    storage.make_file(json_path)
-    manifest.write_empty_playlist_object(json_path, clean_json_name)
+    manifest_path = storage.generate_manifest_path(
+        path, clean_json_name, manifest_format or config.MANIFEST_FORMAT
+    )
+    manifest.write_empty_playlist_object(manifest_path, clean_json_name)
 
     ui.CONSOLE.print(f"[green]Created empty playlist: {name}[/]")
 
@@ -129,9 +131,11 @@ def cmd_add_songs(playlist_name: str, sources: list[str]):
         return
 
     clean_json_name = storage.clean_json_name(clean_pl_name)
-    json_path = storage.generate_json_path(p_dir, clean_json_name)
-    if not json_path.exists():
-        ui.CONSOLE.print(f"[red]Error: Manifest '{json_path.name}' missing.[/]")
+    manifest_path = storage.find_manifest_path(
+        p_dir, clean_json_name, config.MANIFEST_FORMAT
+    )
+    if not manifest_path.exists():
+        ui.CONSOLE.print(f"[red]Error: Manifest '{manifest_path.name}' missing.[/]")
         return
 
     # Expand sources into individual URLs
@@ -153,7 +157,7 @@ def cmd_add_songs(playlist_name: str, sources: list[str]):
         try:
             raw_info = downloader.extract_data_from_url(url)
             song_data = manifest.create_track_entry_from_raw(raw_info, url)
-            manifest.add_track_to_metadata(json_path, song_data)
+            manifest.add_track_to_metadata(manifest_path, song_data)
             ui.CONSOLE.print(f"[green]Added:[/] {song_data.get('title', 'Unknown')}")
         except Exception as e:
             ui.CONSOLE.print(f"[red]Failed to add {url}: {e}[/]")
@@ -208,8 +212,8 @@ def extract_urls_from_json(json_data) -> list[str]:
         
     return list(dict.fromkeys(found_urls))  # Remove duplicates preserving order
 
-def cmd_import_playlist(source: str, playlist_name: str = None):
-    """Imports a YouTube/YTM playlist URL or a local JSON/TXT list of links into a new JSON playlist."""
+def cmd_import_playlist(source: str, playlist_name: str = None, manifest_format: str | None = None):
+    """Imports a playlist URL or local list of links into a playlist manifest."""
     src_path = Path(source)
 
     # Determine base target name & directory
@@ -241,12 +245,14 @@ def cmd_import_playlist(source: str, playlist_name: str = None):
     p_dir.mkdir(parents=True, exist_ok=True)
     (p_dir / "music").mkdir(parents=True, exist_ok=True)
 
-    json_name = storage.clean_json_name(clean_pl_name)
-    json_path = storage.generate_json_path(p_dir, json_name)
+    manifest_name = storage.clean_json_name(clean_pl_name)
+    manifest_path = storage.find_manifest_path(
+        p_dir, manifest_name, manifest_format or config.MANIFEST_FORMAT
+    )
 
     # Initialize manifest dictionary if missing
-    if not json_path.exists():
-        manifest.write_empty_playlist_object(json_path, clean_pl_name)
+    if not manifest_path.exists():
+        manifest.write_empty_playlist_object(manifest_path, clean_pl_name)
 
     ui.CONSOLE.print(
         f"[green]Found {len(urls_to_process)} track links to import.[/]"
@@ -261,7 +267,7 @@ def cmd_import_playlist(source: str, playlist_name: str = None):
             raw_info = downloader.extract_data_from_url(url)
             song_data = manifest.create_track_entry_from_raw(raw_info, url)
 
-            manifest.add_track_to_metadata(json_path, song_data)
+            manifest.add_track_to_metadata(manifest_path, song_data)
             imported_count += 1
             ui.CONSOLE.print(
                 f"[green]Added:[/] {song_data.get('title', 'Unknown')}"
@@ -343,14 +349,14 @@ def cmd_export_playlist(
     out_path = Path(output_dir).expanduser().resolve() / clean_pname
     storage.make_directory(out_path, parents=True)
 
-    json_paths = storage.separate_json_manifest_paths(p_dir)
+    json_paths = storage.separate_manifest_paths(p_dir)
     if not json_paths:
         ui.CONSOLE.print(
             f"[red]Error: Manifest for '{clean_pname}' not found.[/]"
         )
         return
 
-    data = manifest.load_json_manifest(json_paths[0])
+    data = manifest.load_manifest(json_paths[0])
     songs = data.get("songs", data.get("tracks", []))
 
     strict_ascii = legacy_mp3_mode
@@ -413,7 +419,7 @@ def cmd_export_playlist(
             if not thumb_src.exists():
                 thumb_src = p_dir / "music" / f"{safe_name}.jpg"
 
-            # Copy local file or re-download from JSON manifest URL
+            # Copy local file or re-download from the manifest URL
             if thumb_src.exists():
                 storage.copy_file(thumb_src, thumb_dest)
             elif song.get("thumbnail_url"):
@@ -564,17 +570,17 @@ def _execute_sync_task(
 def _process_playlist_sync(
     playlist_dir: Path, flags: dict, concurrency: int | None = None
 ) -> dict:
-    json_paths = storage.separate_json_manifest_paths([playlist_dir])
-    if not json_paths:
+    manifest_paths = storage.separate_manifest_paths([playlist_dir])
+    if not manifest_paths:
         ui.CONSOLE.print(
             f"[red]Error: Missing manifest in {playlist_dir.name}[/]"
         )
         return {"dl": 0, "meta": 0, "fail": 0, "skip": 0, "dead": 0}
 
-    json_path = json_paths[0]
-    json_data = manifest.load_json_manifest(json_path)
-    desired_songs = json_data.get("songs", [])
-    download_all = bool(json_data.get("download_video_all", False))
+    manifest_path = manifest_paths[0]
+    manifest_data = manifest.load_manifest(manifest_path)
+    desired_songs = manifest_data.get("songs", [])
+    download_all = bool(manifest_data.get("download_video_all", False))
 
     music_dir = playlist_dir / "music"
     storage.make_directory(music_dir)
@@ -646,7 +652,7 @@ def _process_playlist_sync(
 
                 def _thread_job(t=task, tid=item_task_id):
                     res = _execute_sync_task(
-                        t, flags, json_path, item_progress, tid
+                        t, flags, manifest_path, item_progress, tid
                     )
                     item_progress.remove_task(tid)
                     return res
@@ -680,7 +686,7 @@ def _process_playlist_sync(
 
                 global_progress.update(main_task_id, advance=1)
 
-    manifest.write_to_json(json_path, json_data)
+    manifest.write_manifest(manifest_path, manifest_data)
     ui.render_sync_summary(stats, len(tasks), playlist_dir.name)
 
     return stats
@@ -751,18 +757,17 @@ def cmd_clear_fail(playlist_name: str, song_name: str = None, all_songs: bool = 
         ui.CONSOLE.print(f"[red]Error: Playlist '{clean_pl_name}' not found.[/]")
         return
 
-    json_paths = storage.separate_json_manifest_paths(target_dir)
+    manifest_paths = storage.separate_manifest_paths(target_dir)
 
-    # Check if the list returned any valid JSON manifest paths
-    if not json_paths:
-        ui.CONSOLE.print(f"[red]Error: No JSON manifest found in '{target_dir}'.[/]")
+    if not manifest_paths:
+        ui.CONSOLE.print(f"[red]Error: No playlist manifest found in '{target_dir}'.[/]")
         return
 
     # Extract the single Path object from the list
-    json_path = json_paths[0]
+    manifest_path = manifest_paths[0]
     
-    json_data = manifest.load_json_manifest(json_path)
-    songs = json_data.get("songs", [])
+    manifest_data = manifest.load_manifest(manifest_path)
+    songs = manifest_data.get("songs", [])
 
     if not songs:
         ui.CONSOLE.print(f"[yellow]No songs found in playlist '{clean_pl_name}'.[/]")
@@ -813,5 +818,5 @@ def cmd_clear_fail(playlist_name: str, song_name: str = None, all_songs: bool = 
         cleared_count += 1
 
     # Save manifest back to disk
-    manifest.write_to_json(json_path, json_data)
+    manifest.write_manifest(manifest_path, manifest_data)
     ui.CONSOLE.print(f"[green]Successfully reset failure status for {cleared_count} track(s).[/]")

@@ -1,0 +1,35 @@
+# YAML playlist manifest example.
+# download_video_all is false, so only tracks marked download_video: true
+# are downloaded as video. dont_override preserves hand-edited metadata.
+playlist_name: pl-otherplaylist
+download_video_all: false
+total_tracks: 2
+songs:
+  - id: SLS9tUa2GXI
+    url: https://www.youtube.com/watch?v=SLS9tUa2GXI
+    title: Featherfall
+    artist: Aaron Cherof
+    composer: "-"
+    vocalist_vsynth: "-"
+    language: "-"
+    release_date: "2024-04-26"
+    length: "5:44"
+    download_video: true
+    status: active
+    thumbnail_url: https://i.ytimg.com/vi/SLS9tUa2GXI/maxresdefault.jpg
+    dont_override:
+      - title
+      - artist
+  - id: CcAV71mXg_8
+    url: https://www.youtube.com/watch?v=CcAV71mXg_8
+    title: Watcher
+    artist: Aaron Cherof
+    composer: "-"
+    vocalist_vsynth: "-"
+    language: "-"
+    release_date: "2024-04-26"
+    length: "5:32"
+    download_video: false
+    status: active
+    thumbnail_url: https://i.ytimg.com/vi/CcAV71mXg_8/maxresdefault.jpg
+    dont_override: []

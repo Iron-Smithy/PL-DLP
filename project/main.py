@@ -8,7 +8,8 @@ module_to_pip = {
     "yt_dlp": "yt-dlp",
     "mutagen": "mutagen",
     "PIL": "Pillow",
-    "rich": "rich"
+    "rich": "rich",
+    "yaml": "PyYAML"
 }
 
 missing_modules = []
@@ -57,6 +58,12 @@ def create_parser() -> argparse.ArgumentParser:
         "new", aliases=["create", "make"], help="Create a new empty playlist folder"
     )
     new_parser.add_argument("playlist_name", help="Name of the new playlist")
+    new_parser.add_argument(
+        "--manifest-format",
+        choices=["json", "yaml"],
+        default=None,
+        help="Format for the new manifest (default: config setting)",
+    )
 
     # 'add' command (Append songs/URLs to an existing playlist)
     add_parser = subparsers.add_parser(
@@ -71,6 +78,12 @@ def create_parser() -> argparse.ArgumentParser:
     )
     import_parser.add_argument("source", help="YouTube Playlist URL or file path (JSON/TXT array of URLs)")
     import_parser.add_argument("playlist_name", nargs="?", default=None, help="Optional custom name for imported playlist")
+    import_parser.add_argument(
+        "--manifest-format",
+        choices=["json", "yaml"],
+        default=None,
+        help="Format for a new manifest (default: config setting)",
+    )
 
     # 'rm' command
     rm_parser = subparsers.add_parser(
@@ -127,9 +140,9 @@ def create_parser() -> argparse.ArgumentParser:
         "playlist", nargs="?", default=None, help="Optional name of playlist to update"
     )
     # Media Controls
-    update_parser.add_argument("--meta-only", action="store_true", help="Only process metadata JSON; do not download audio/video files")
+    update_parser.add_argument("--meta-only", action="store_true", help="Only process manifest metadata; do not download audio/video files")
     update_parser.add_argument("--no-thumb", action="store_true", help="Skip embedding thumbnails/artwork into downloaded files")
-    update_parser.add_argument("--retry-dead", action="store_true", help="Ignore 'dead link' flags in JSON and retry fetching them anyway")
+    update_parser.add_argument("--retry-dead", action="store_true", help="Ignore 'dead link' flags in manifests and retry fetching them anyway")
 
     # Network & Engine Behavior
     update_parser.add_argument("--offline", action="store_true", help="Do not download or fetch anything online")
@@ -169,13 +182,13 @@ def main() -> int:
             orchestrator.cmd_list_all()
 
     elif args.command in ["new", "create", "make"]:
-        orchestrator.cmd_new_playlist(args.playlist_name)
+        orchestrator.cmd_new_playlist(args.playlist_name, args.manifest_format)
 
     elif args.command in ["add", "append"]:
         orchestrator.cmd_add_songs(args.playlist, args.urls)
 
     elif args.command in ["import", "ingest", "fetch"]:
-        orchestrator.cmd_import_playlist(args.source, args.playlist_name)
+        orchestrator.cmd_import_playlist(args.source, args.playlist_name, args.manifest_format)
 
     elif args.command in ["rm", "remove", "del", "delete"]:
         orchestrator.cmd_remove_playlist(args.playlist_name)
