@@ -35,8 +35,23 @@ def clean_json_name(playlist_name: str) -> str:
     playlist_name = clean_playlist_name(playlist_name)
     return playlist_name.removeprefix("pl-")
 
-def generate_json_path(playlist_dir: Path, playlist_name: str):
-    return playlist_dir / (playlist_name + ".json")
+MANIFEST_EXTENSIONS = (".json", ".yaml", ".yml")
+
+def generate_manifest_path(playlist_dir: Path, playlist_name: str, manifest_format: str = "json") -> Path:
+    manifest_format = manifest_format.lower().removeprefix(".")
+    if manifest_format == "yml":
+        manifest_format = "yaml"
+    if manifest_format not in ("json", "yaml"):
+        raise ValueError("Manifest format must be 'json' or 'yaml'.")
+    return playlist_dir / f"{playlist_name}.{manifest_format}"
+
+def find_manifest_path(playlist_dir: Path, playlist_name: str, manifest_format: str = "json") -> Path:
+    """Return an existing manifest path, or a new path using the requested format."""
+    for extension in MANIFEST_EXTENSIONS:
+        candidate = playlist_dir / f"{playlist_name}{extension}"
+        if candidate.exists():
+            return candidate
+    return generate_manifest_path(playlist_dir, playlist_name, manifest_format)
 
 def find_playlist_directory(base_music_dir: Path, playlist_name: str, create_if_missing: bool = False) -> Optional[Path]:
     """
@@ -84,19 +99,20 @@ def separate_music_paths(playlist_directories: Union[Path, list[Path]]) -> list[
         
     return playlists
 
-def separate_json_manifest_paths(playlist_directories: Union[Path, list[Path]]) -> list[Path]:
-    """Filters out json manifest paths from one or more directory paths."""
+def separate_manifest_paths(playlist_directories: Union[Path, list[Path]]) -> list[Path]:
+    """Finds supported manifest paths from one or more playlist directories."""
     # Ensure input is always treated as a list of paths
     if isinstance(playlist_directories, Path):
         playlist_directories = [playlist_directories]
         
     manifests = []
     for playlist_dir in playlist_directories:
-        # Generate the expected JSON file name based on the directory name
-        json_path = generate_json_path(playlist_dir, clean_json_name(playlist_dir.name))
+        manifest_path = find_manifest_path(
+            playlist_dir, clean_json_name(playlist_dir.name)
+        )
         
-        if json_path.exists():
-            manifests.append(json_path)
+        if manifest_path.exists():
+            manifests.append(manifest_path)
             
     return manifests
 

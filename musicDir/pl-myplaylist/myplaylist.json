@@ -33,7 +33,10 @@
             "download_video": false,
             "status": "active",
             "thumbnail_url": "https://i.ytimg.com/vi/Tjp8cj8Vzyo/maxresdefault.jpg",
-            "dont_override": []
+            "dont_override": [
+                "artist",
+                "composer"
+            ]
         }
     ]
 }

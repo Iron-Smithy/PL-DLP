@@ -74,7 +74,8 @@ def main():
     # Generate Machine-Readable config.json
     config_payload = {
         "music_root": str(music_root),
-        "project_root": str(project_root)
+        "project_root": str(project_root),
+        "manifest_format": "json"
     }
     config_file = project_root / "config.json"
     with open(config_file, "w", encoding="utf-8") as f:
@@ -89,7 +90,8 @@ def main():
         "yt_dlp": "yt-dlp",
         "mutagen": "mutagen",
         "PIL": "Pillow",
-        "rich": "rich"
+        "rich": "rich",
+        "yaml": "PyYAML"
     }
 
     missing_modules = []

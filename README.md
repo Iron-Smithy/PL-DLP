@@ -3,13 +3,13 @@
 > ⚠️ **Work in Progress**
 > This project is currently in active development. Installer scripts have **not** been heavily tested on **Linux or Windows**. Expect edge cases or potential environment bugs. Manual setup instructions are provided below as a better fallback.
 
-`pl-dlp` is a CLI music and playlist manager built on top of `yt-dlp` and `mutagen`. It allows you to organize tracks into JSON file, sync media files based on those JSON files, write metadata directly into M4A files, and export playlists as MP3 intended for older hardware.
+`pl-dlp` is a CLI music and playlist manager built on top of `yt-dlp` and `mutagen`. It allows you to organize tracks in JSON or YAML playlist manifests, sync media files based on those manifests, write metadata directly into M4A files, and export playlists as MP3 intended for older hardware. The application configuration remains JSON.
 
 ***REMOVED***
 
 ## Key Components
 
-* **Playlists stored in JSON "Manifest" files:** songs in a playlist are stored in a JSON file. Audio is downloaded from links in JSON and metadata writen to files are controlled by information stored in JSON
+* **JSON and YAML playlist manifests:** songs and download metadata can be stored in JSON (`.json`) or YAML (`.yaml`/`.yml`) files. Existing manifests retain their original format when updated.
 
 
 * **Multi-Threaded Downloader:** Parallel downloading and processing engine displayed with `rich` progress bars.
@@ -22,6 +22,15 @@
 
 
 * **MP3 Player Support:** Exporting using `--legacy-mp3` mode to strip unsafe ASCII characters, removing video streams, and embedding ID3v2.3 cover art.
+
+### Example manifests
+
+The [`musicDir` examples](./musicDir) include both supported manifest formats:
+
+* [`myplaylist.json`](./musicDir/pl-myplaylist/myplaylist.json) shows per-track video download selection and `dont_override` for protecting hand-edited title, artist, and composer fields.
+* [`otherplaylist.yaml`](./musicDir/pl-otherplaylist/otherplaylist.yaml) shows the same manifest structure in YAML, including one video track and a track whose title and artist are protected from metadata updates.
+
+`download_video_all: true` forces video downloads for every track in that playlist. Otherwise, set `download_video: true` only on tracks that should download as video. `status` is managed by the sync process; use `active` for tracks ready to sync.
 
 ***REMOVED***
 
@@ -82,7 +91,7 @@ cd PL-DLP
 Install the required Python modules:
 
 ```bash
-pip install yt-dlp mutagen Pillow rich
+pip install yt-dlp mutagen Pillow rich PyYAML
 ```
 
 (Note: If using Linux with an externally managed environment, you may need to add `--break-system-packages` or use a Python virtual environment).
@@ -94,7 +103,8 @@ Create a file named `config.json` inside your project directory to define where 
 ```json
 {
     "music_root": "/path/to/your/Music/pl-dlp",
-    "project_root": "/path/to/your/pl-dlp"
+    "project_root": "/path/to/your/pl-dlp",
+    "manifest_format": "json"
 }
 
 ```
@@ -145,11 +155,17 @@ pl-dlp ls pl-rock
 
 ### 2. `import` — Ingest Playlists or Links
 
-Create a playlist JSON manifest by scraping a YouTube playlist URL or parsing a local `.txt`/`.json` file containing YouTube URLs.
+Create a playlist manifest by scraping a YouTube playlist URL or parsing a local `.txt`/`.json` file containing YouTube URLs. New manifests use the `manifest_format` setting in `config.json` (`json` by default); choose `yaml` for YAML. A per-command `--manifest-format json|yaml` overrides the setting when creating a manifest. Existing playlist manifests keep their current type regardless of the override.
 
 ```bash
 # Scrape a YouTube playlist URL
 pl-dlp import "https://www.youtube.com/playlist?list=..." my-playlist
+
+# Create a YAML manifest for a new playlist
+pl-dlp new my-playlist --manifest-format yaml
+
+# Import a playlist and choose the new manifest format
+pl-dlp import "https://www.youtube.com/playlist?list=..." my-playlist --manifest-format yaml
 
 # Parse a local text file containing YouTube links
 pl-dlp import links.txt custom-playlist

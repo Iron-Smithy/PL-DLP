@@ -2,22 +2,33 @@ import json
 import config
 import downloader
 from pathlib import Path
+import yaml
 
-def load_json_manifest(json_path: Path) -> dict:
-    """Takes a specific json path and returns its contents."""
-    if not json_path.exists():
-        return False
-    return json.loads(json_path.read_text(encoding="utf-8", errors="replace"))
+def load_manifest(manifest_path: Path) -> dict:
+    """Load a JSON or YAML playlist manifest."""
+    if not manifest_path.exists():
+        raise FileNotFoundError(f"Manifest does not exist at {manifest_path}")
 
-def write_to_json(write_path: Path, data):
-    with open(write_path, "w", encoding="utf-8") as file:
-        json.dump(data, file, indent=4, ensure_ascii=False)
+    text = manifest_path.read_text(encoding="utf-8", errors="replace")
+    if manifest_path.suffix.lower() in (".yaml", ".yml"):
+        data = yaml.safe_load(text)
+    else:
+        data = json.loads(text)
 
-def add_track_to_metadata(json_path: Path, new_track_data: dict):
+    if not isinstance(data, dict):
+        raise ValueError(f"Manifest at {manifest_path} must contain a JSON/YAML object.")
+    return data
+
+def write_manifest(manifest_path: Path, data: dict):
+    with open(manifest_path, "w", encoding="utf-8") as file:
+        if manifest_path.suffix.lower() in (".yaml", ".yml"):
+            yaml.safe_dump(data, file, allow_unicode=True, sort_keys=False)
+        else:
+            json.dump(data, file, indent=4, ensure_ascii=False)
+
+def add_track_to_metadata(manifest_path: Path, new_track_data: dict):
     # Read existing metadata
-    data = load_json_manifest(json_path)
-    if data is False or data is None:
-        raise ValueError(f"JSON manifest does not exist at {json_path}")
+    data = load_manifest(manifest_path)
 
     # Determine whether the manifest key is 'songs' or 'tracks'
     key = "songs" if "songs" in data else "tracks"
@@ -29,7 +40,7 @@ def add_track_to_metadata(json_path: Path, new_track_data: dict):
     data["total_tracks"] = len(data[key])
 
     # Write updated dictionary back to disk
-    write_to_json(json_path, data)
+    write_manifest(manifest_path, data)
 
 def get_first_available(data, keys: list[str], default=config.JSON_FALLBACK_CHAR):
     """Retrieves the first existing key from a dictionary, returning default if none exist."""
@@ -38,9 +49,9 @@ def get_first_available(data, keys: list[str], default=config.JSON_FALLBACK_CHAR
             return data[key]
     return default
 
-def write_empty_playlist_object(json_path: Path, pl_name: str):
-    write_to_json(
-        json_path,
+def write_empty_playlist_object(manifest_path: Path, pl_name: str):
+    write_manifest(
+        manifest_path,
         {
             "playlist_name": pl_name,
             "download_video_all": False,
