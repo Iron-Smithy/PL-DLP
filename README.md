@@ -200,7 +200,34 @@ pl-dlp update pl-rock --retry-dead
 
 ```
 
-### 5. `export` — Format and Package Media
+### 5. `config` — View or Set Preferences
+
+View the preferred format for new playlist manifests, or change it. When the setting is missing, running `pl-dlp config` asks you to choose; installations and self-updates also ask before saving a missing preference.
+
+```bash
+# Show the current setting (prompts if missing)
+pl-dlp config
+
+# Set the default format for new manifests
+pl-dlp config yaml
+pl-dlp config json
+```
+
+### 6. `open` — Open a Folder in the File Manager
+
+Open the installed source folder or a playlist folder using the operating system's standard graphical folder opener.
+
+```bash
+# Open the pl-dlp source folder
+pl-dlp open self
+
+# Open a playlist folder
+pl-dlp open my-playlist
+```
+
+On Linux this uses `xdg-open`; a graphical desktop session is required. If the file manager cannot be launched, pl-dlp reports the error.
+
+### 7. `export` — Format and Package Media
 
 Convert and move files out of `pl-dlp` into custom locations or older devices.
 
@@ -216,7 +243,7 @@ pl-dlp export pl-rock -o ./out --zip
 
 ```
 
-### 6. `clear-fail` — Reset Error States
+### 8. `clear-fail` — Reset Error States
 
 Reset track statuses that were marked as failed or broken back to `active`.
 

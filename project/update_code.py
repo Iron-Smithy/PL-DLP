@@ -63,6 +63,19 @@ def _update_dependencies() -> None:
 	command = [sys.executable, "-m", "pip", "install", "--upgrade", *DEPENDENCIES]
 	subprocess.run(command, check=True)
 
+def _ensure_manifest_format_config(installed_dir: Path) -> None:
+	import config
+
+	config_path = installed_dir / "config.json"
+	user_config = config.read_user_config(config_path)
+	if config.normalize_manifest_format(user_config.get("manifest_format")):
+		return
+
+	print("The preferred manifest format is not set in config.json.")
+	manifest_format = config.prompt_manifest_format()
+	config.write_user_config({"manifest_format": manifest_format}, config_path)
+	print(f"Saved preferred manifest format: {manifest_format}")
+
 def update_application(
 	repository: str = REPOSITORY,
 	branch: str = DEFAULT_BRANCH,
@@ -78,7 +91,8 @@ def update_application(
 			file_count = _copy_source(source_dir, target_dir)
 			print(f"Updated {file_count} application files in {target_dir}")
 			_update_dependencies()
-	except (OSError, urllib.error.URLError, zipfile.BadZipFile, subprocess.CalledProcessError, RuntimeError) as error:
+			_ensure_manifest_format_config(target_dir)
+	except (OSError, EOFError, ValueError, urllib.error.URLError, zipfile.BadZipFile, subprocess.CalledProcessError, RuntimeError) as error:
 		print(f"[ERROR] Update failed: {error}", file=sys.stderr)
 		return False
 

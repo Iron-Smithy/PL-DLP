@@ -5,6 +5,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import config
+
 MIN_PYTHON = (3, 10)
 
 def verify_python_version(python_exe: str) -> bool:
@@ -55,6 +57,7 @@ def main():
     print("\nDirectory Configuration")
     music_root = prompt_directory("Where should music and playlists be stored?", default_music)
     prog_base = prompt_directory("Where should pl-dlp program files live?", default_prog)
+    manifest_format = config.prompt_manifest_format()
     
     project_root = prog_base / "pl-dlp_src"
     project_root.mkdir(parents=True, exist_ok=True)
@@ -75,7 +78,7 @@ def main():
     config_payload = {
         "music_root": str(music_root),
         "project_root": str(project_root),
-        "manifest_format": "json"
+        "manifest_format": manifest_format
     }
     config_file = project_root / "config.json"
     with open(config_file, "w", encoding="utf-8") as f:

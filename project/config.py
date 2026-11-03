@@ -95,19 +95,55 @@ def _load_user_config() -> dict:
         "manifest_format": "json"
     }
 
+def read_user_config(config_path: Path = CONFIG_FILE) -> dict:
+    """Read the JSON configuration file without applying runtime defaults."""
+    if not config_path.exists():
+        return {}
+    with open(config_path, "r", encoding="utf-8") as file:
+        data = json.load(file)
+    if not isinstance(data, dict):
+        raise ValueError(f"Configuration at {config_path} must contain a JSON object.")
+    return data
+
+def write_user_config(updates: dict, config_path: Path = CONFIG_FILE) -> None:
+    """Update selected JSON configuration values while preserving other settings."""
+    data = read_user_config(config_path)
+    data.update(updates)
+    config_path.write_text(
+        json.dumps(data, indent=4, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+
+def normalize_manifest_format(value) -> str | None:
+    if not isinstance(value, str):
+        return None
+    value = value.strip().lower().removeprefix(".")
+    if value == "yml":
+        value = "yaml"
+    return value if value in ("json", "yaml") else None
+
+def prompt_manifest_format() -> str:
+    while True:
+        value = input("Preferred playlist manifest format [json/yaml] (default: json): ").strip()
+        if not value:
+            return "json"
+        normalized = normalize_manifest_format(value)
+        if normalized:
+            return normalized
+        print("Please enter 'json' or 'yaml'.")
+
 _user_cfg = _load_user_config()
 
 PROGRAM_ROOT = Path(_user_cfg.get("project_root", APP_DIR))
 MUSIC_ROOT = Path(_user_cfg.get("music_root", Path.home() / "Music" / "pl-dlp"))
-MANIFEST_FORMAT = str(_user_cfg.get("manifest_format", "json")).lower().removeprefix(".")
-if MANIFEST_FORMAT == "yml":
-    MANIFEST_FORMAT = "yaml"
-if MANIFEST_FORMAT not in ("json", "yaml"):
+MANIFEST_FORMAT = normalize_manifest_format(_user_cfg.get("manifest_format")) or "json"
+if _user_cfg.get("manifest_format") is not None and not normalize_manifest_format(
+    _user_cfg.get("manifest_format")
+):
     print(
-        f"[Warning] Unsupported manifest_format '{MANIFEST_FORMAT}' in config.json; using json.",
+        f"[Warning] Unsupported manifest_format '{_user_cfg.get('manifest_format')}' in config.json; using json.",
         file=sys.stderr,
     )
-    MANIFEST_FORMAT = "json"
 
 TRASH = MUSIC_ROOT / ".trash"
 BACKUP = MUSIC_ROOT / ".backups"
