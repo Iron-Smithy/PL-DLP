@@ -168,6 +168,25 @@ def create_parser() -> argparse.ArgumentParser:
         help="Pull the latest code from GitHub and update Python dependencies"
     )
 
+    config_parser = subparsers.add_parser(
+        "config",
+        help="View or set the preferred playlist manifest format",
+    )
+    config_parser.add_argument(
+        "manifest_format",
+        nargs="?",
+        choices=["json", "yaml"],
+        help="Preferred format for new manifests",
+    )
+
+    open_parser = subparsers.add_parser(
+        "open", help="Open the program or a playlist folder in the file manager"
+    )
+    open_parser.add_argument(
+        "target",
+        help="'self' for the program folder, or a playlist name",
+    )
+
     return parser
 
 def main() -> int:
@@ -225,6 +244,12 @@ def main() -> int:
         
     elif args.command == "update-self":
         return 0 if update_code.update_application() else 1
+
+    elif args.command == "config":
+        orchestrator.cmd_config_manifest_format(args.manifest_format)
+
+    elif args.command == "open":
+        orchestrator.cmd_open(args.target)
 
     elif args.command in ["update", "sync", "up"]:
         update_opts = vars(args).copy()

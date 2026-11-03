@@ -1,6 +1,9 @@
 import concurrent.futures
 from datetime import datetime
 from pathlib import Path
+import os
+import platform
+import subprocess
 import threading
 import json
 
@@ -15,6 +18,70 @@ import manifest
 import metadata
 import storage
 import ui
+
+def cmd_config_manifest_format(manifest_format: str | None = None):
+    try:
+        user_config = config.read_user_config(config.CONFIG_FILE)
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        ui.CONSOLE.print(f"[red]Could not read config.json: {error}[/]")
+        return
+
+    current_format = config.normalize_manifest_format(
+        user_config.get("manifest_format")
+    )
+    if manifest_format is None and current_format is not None:
+        ui.CONSOLE.print(f"Preferred manifest format: {current_format}")
+        return
+
+    chosen_format = manifest_format or config.prompt_manifest_format()
+    try:
+        config.write_user_config(
+            {"manifest_format": chosen_format}, config.CONFIG_FILE
+        )
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        ui.CONSOLE.print(f"[red]Could not update config.json: {error}[/]")
+        return
+
+    config.MANIFEST_FORMAT = chosen_format
+    ui.CONSOLE.print(f"[green]Preferred manifest format set to {chosen_format}.[/]")
+
+def cmd_open(target: str):
+    if target.casefold() == "self":
+        folder = config.PROGRAM_ROOT
+    else:
+        folder = storage.find_playlist_directory(config.MUSIC_ROOT, target)
+        if folder is None:
+            ui.CONSOLE.print(f"[red]Playlist '{target}' was not found.[/]")
+            return
+
+    if not folder.is_dir():
+        ui.CONSOLE.print(f"[red]Folder does not exist: {folder}[/]")
+        return
+
+    system = platform.system()
+    try:
+        if system == "Windows":
+            os.startfile(str(folder))
+        elif system == "Darwin":
+            result = subprocess.run(
+                ["open", str(folder)], capture_output=True, text=True, timeout=15
+            )
+            if result.returncode:
+                raise OSError(result.stderr.strip() or "The system folder opener failed.")
+        elif system == "Linux":
+            result = subprocess.run(
+                ["xdg-open", str(folder)], capture_output=True, text=True, timeout=15
+            )
+            if result.returncode:
+                raise OSError(result.stderr.strip() or "The system folder opener failed.")
+        else:
+            ui.CONSOLE.print(f"[red]Opening folders is not supported on {system}.[/]")
+            return
+    except (OSError, subprocess.TimeoutExpired) as error:
+        ui.CONSOLE.print(f"[red]Could not open folder '{folder}': {error}[/]")
+        return
+
+    ui.CONSOLE.print(f"[green]Opened folder: {folder}[/]")
 
 def cmd_list_all():
     playlist_directories = storage.find_playlist_directories(config.MUSIC_ROOT)
