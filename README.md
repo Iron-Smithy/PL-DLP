@@ -276,3 +276,13 @@ Keep `pl-dlp` up to date with the latest features and `yt-dlp` fixes:
 ```bash
 pl-dlp update-self
 ```
+
+The self-updater preserves your `config.json` and resolves file/folder name
+conflicts left by older layouts, such as a legacy `orchestrator.py` beside the
+current `orchestrator` folder. If an older installed version fails before it
+can run `update-self`, remove that conflicting legacy file once, then update:
+
+```powershell
+Remove-Item "$env:LOCALAPPDATA\pl-dlp_src\orchestrator.py"
+python "$env:LOCALAPPDATA\pl-dlp_src\main.py" update-self
+```
