@@ -5,7 +5,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-import config
+import subsystem.config as config
 
 MIN_PYTHON = (3, 10)
 

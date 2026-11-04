@@ -5,7 +5,7 @@ from pathlib import Path
 import yt_dlp
 from PIL import Image
 
-import config
+import subsystem.config as config
 
 class YDLQuietLogger:
     def debug(self, msg):
