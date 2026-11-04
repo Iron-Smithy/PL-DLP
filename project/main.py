@@ -28,8 +28,11 @@ if missing_modules:
     sys.exit(1)
 
 import argparse
-import orchestrator
-import config
+import subsystem.config as config
+import orchestrator.playlist_orchestrator as playlist_orchestrator
+import orchestrator.export_orchestrator as export_orchestrator
+import orchestrator.import_orchestrator as import_orchestrator
+import orchestrator.update_orchestrator as update_orchestrator
 import update_code
 
 def create_parser() -> argparse.ArgumentParser:
@@ -196,27 +199,29 @@ def main() -> int:
     # Route commands using lists to catch all aliases
     if args.command in ["ls", "list", "dir"]:
         if args.playlist:
-            orchestrator.cmd_list_playlist(args.playlist)
+            playlist_orchestrator.cmd_list_playlist(args.playlist)
         else:
-            orchestrator.cmd_list_all()
+            playlist_orchestrator.cmd_list_all()
 
     elif args.command in ["new", "create", "make"]:
-        orchestrator.cmd_new_playlist(args.playlist_name, args.manifest_format)
+        playlist_orchestrator.cmd_new_playlist(args.playlist_name, args.manifest_format)
 
     elif args.command in ["add", "append"]:
-        orchestrator.cmd_add_songs(args.playlist, args.urls)
+        import_orchestrator.add_songs(args.playlist, args.urls)
 
     elif args.command in ["import", "ingest", "fetch"]:
-        orchestrator.cmd_import_playlist(args.source, args.playlist_name, args.manifest_format)
+        import_orchestrator.import_playlist(
+            args.source, args.playlist_name, args.manifest_format
+        )
 
     elif args.command in ["rm", "remove", "del", "delete"]:
-        orchestrator.cmd_remove_playlist(args.playlist_name)
+        playlist_orchestrator.cmd_remove_playlist(args.playlist_name)
 
     elif args.command in ["mv", "rename", "move"]:
-        orchestrator.cmd_rename_playlist(args.old_name, args.new_name)
+        playlist_orchestrator.cmd_rename_playlist(args.old_name, args.new_name)
 
     elif args.command == "export":
-        orchestrator.cmd_export_playlist(
+        export_orchestrator.export_playlist(
             playlist_name=args.playlist,
             output_dir=args.output,
             target_format=args.format,
@@ -235,9 +240,9 @@ def main() -> int:
             parser.error("clear-fail requires either SONG_NAME or --all")
 
         if args.all:
-            orchestrator.cmd_clear_fail(args.playlist_name, all_songs=True)
+            playlist_orchestrator.cmd_clear_fail(args.playlist_name, all_songs=True)
         else:
-            orchestrator.cmd_clear_fail(
+            playlist_orchestrator.cmd_clear_fail(
                 args.playlist_name,
                 song_name=args.song_name,
             )
@@ -246,10 +251,10 @@ def main() -> int:
         return 0 if update_code.update_application() else 1
 
     elif args.command == "config":
-        orchestrator.cmd_config_manifest_format(args.manifest_format)
+        playlist_orchestrator.cmd_config_manifest_format(args.manifest_format)
 
     elif args.command == "open":
-        orchestrator.cmd_open(args.target)
+        playlist_orchestrator.cmd_open(args.target)
 
     elif args.command in ["update", "sync", "up"]:
         update_opts = vars(args).copy()
@@ -257,9 +262,9 @@ def main() -> int:
         update_opts.pop("command")
         
         if playlist:
-            orchestrator.cmd_update_playlist(playlist, **update_opts)
+            update_orchestrator.cmd_update_playlist(playlist, **update_opts)
         else:
-            orchestrator.cmd_update_all(**update_opts)
+            update_orchestrator.cmd_update_all(**update_opts)
 
     return 0
 

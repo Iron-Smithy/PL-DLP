@@ -1,6 +1,6 @@
 import json
-import config
-import downloader
+import subsystem.config as config
+import subsystem.downloader as downloader
 from pathlib import Path
 import yaml
 

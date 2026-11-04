@@ -64,7 +64,7 @@ def _update_dependencies() -> None:
 	subprocess.run(command, check=True)
 
 def _ensure_manifest_format_config(installed_dir: Path) -> None:
-	import config
+	import subsystem.config as config
 
 	config_path = installed_dir / "config.json"
 	user_config = config.read_user_config(config_path)

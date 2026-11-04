@@ -1,7 +1,7 @@
 # pl-dlp
 
 > ⚠️ **Work in Progress**
-> This project is currently in active development. Installer scripts have **not** been heavily tested on **Linux or Windows**. Expect edge cases or potential environment bugs. Manual setup instructions are provided below as a better fallback.
+> This project is currently in active development. Installer scripts have **not** been heavily tested on **Linux or Windows**. Expect edge cases or potential environment bugs. Manual setup instructions are provided below as a fallback.
 
 `pl-dlp` is a CLI music and playlist manager built on top of `yt-dlp` and `mutagen`. It allows you to organize tracks in JSON or YAML playlist manifests, sync media files based on those manifests, write metadata directly into M4A files, and export playlists as MP3 intended for older hardware. The application configuration remains JSON.
 
