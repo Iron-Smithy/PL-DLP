@@ -2,6 +2,10 @@ __author__ = "Iron Smithy"
 __version__ = "0.1.3"
 
 import sys  # Built-in module
+import update_code
+
+if __name__ == "__main__" and sys.argv[1:2] == ["update-self"]:
+    raise SystemExit(0 if update_code.update_application() else 1)
 
 
 module_to_pip = {
@@ -33,7 +37,6 @@ import orchestrator.playlist_orchestrator as playlist_orchestrator
 import orchestrator.export_orchestrator as export_orchestrator
 import orchestrator.import_orchestrator as import_orchestrator
 import orchestrator.update_orchestrator as update_orchestrator
-import update_code
 
 def create_parser() -> argparse.ArgumentParser:
     """Creates and configures the CLI argument parser."""
