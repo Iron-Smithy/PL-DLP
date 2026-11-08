@@ -1,6 +1,7 @@
 import concurrent.futures
 from dataclasses import dataclass
 from datetime import datetime
+import os
 from pathlib import Path
 import threading
 
@@ -134,7 +135,8 @@ def _build_sync_tasks(
     music_dir = playlist_dir / "music"
     storage.make_directory(music_dir)
     songs_on_disk = {
-        path.name: path for path in storage.separate_music_paths([playlist_dir])[0]
+        os.path.normcase(path.name): path
+        for path in storage.separate_music_paths([playlist_dir])[0]
     }
 
     tasks = []
@@ -144,8 +146,10 @@ def _build_sync_tasks(
         is_video = download_video_all or bool(song.get("download_video", False))
         extension = config.VIDEO_EXT if is_video else config.AUDIO_EXT
         target_path = music_dir / f"{safe_name}{extension}"
-        action = "META" if target_path.exists() else "DL"
-        songs_on_disk.pop(target_path.name, None)
+        existing_path = songs_on_disk.pop(
+            os.path.normcase(target_path.name), None
+        )
+        action = "META" if existing_path is not None else "DL"
         tasks.append(
             SyncTask(
                 song=song,
@@ -158,14 +162,36 @@ def _build_sync_tasks(
     return tasks, songs_on_disk
 
 def _move_orphaned_files(orphaned_files: dict[str, Path]) -> None:
+    if not orphaned_files:
+        return
+
+    try:
+        config.TRASH.mkdir(parents=True, exist_ok=True)
+    except OSError as error:
+        ui.CONSOLE.print(
+            f"[red]Could not create trash directory '{config.TRASH}': {error}[/]"
+        )
+        return
+
+    moved = 0
     for orphan in orphaned_files.values():
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
         try:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             storage.move(
-                str(orphan), config.TRASH / f"{orphan.name}_{timestamp}"
+                orphan, config.TRASH / f"{orphan.name}_{timestamp}"
             )
-        except OSError:
-            pass
+        except OSError as error:
+            ui.CONSOLE.print(
+                f"[red]Could not move orphaned file '{orphan}' to trash: "
+                f"{error}[/]"
+            )
+        else:
+            moved += 1
+
+    if moved:
+        ui.CONSOLE.print(
+            f"[yellow]Moved {moved} orphaned file(s) to {config.TRASH}.[/]"
+        )
 
 def _process_playlist_sync(
     playlist_dir: Path, flags: dict, concurrency: int | None = None
@@ -179,7 +205,7 @@ def _process_playlist_sync(
 
     manifest_path = manifest_paths[0]
     manifest_data = manifest.load_manifest(manifest_path)
-    songs = manifest_data.get("songs", [])
+    songs = manifest_data.get("songs", manifest_data.get("tracks", []))
     download_video_all = bool(manifest_data.get("download_video_all", False))
     tasks, orphaned_files = _build_sync_tasks(
         playlist_dir, songs, download_video_all

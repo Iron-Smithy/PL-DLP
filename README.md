@@ -163,6 +163,9 @@ pl-dlp add pl-rock "https://www.youtube.com/watch?v=XXXXXX"
 ### 4. `update` — Synchronize Local Tracks & Metadata
 
 Runs the sync engine to download missing media files and apply embedded metadata.
+Media files not represented by the manifest, and playlists removed with the CLI,
+are moved to `.trash_bin` rather than deleted. The trash and backup folders are
+created as needed.
 
 ```bash
 # Sync all existing playlists using 4 concurrent workers
@@ -238,7 +241,7 @@ pl-dlp clear-fail pl-rock --all
 ### 9. `backup` and `restore` — Back Up or Restore Manifests
 
 Create a ZIP archive containing every JSON/YAML playlist manifest, or restore
-those files from an archive. Backups are saved under `.backups` in the configured
+those files from an archive. Backups are saved under `.backup_bin` in the configured
 music root. Restoring asks for confirmation if any manifest will be overwritten.
 
 ```bash
@@ -246,7 +249,7 @@ music root. Restoring asks for confirmation if any manifest will be overwritten.
 pl-dlp backup
 
 # Restore manifests from a backup archive
-pl-dlp restore ~/Music/pl-dlp/.backups/20261107_193000_000000.zip
+pl-dlp restore ~/Music/pl-dlp/.backup_bin/20261107_193000_000000.zip
 ```
 
 ## Troubleshooting & Built-in Help

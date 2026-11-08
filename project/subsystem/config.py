@@ -145,8 +145,8 @@ if _user_cfg.get("manifest_format") is not None and not normalize_manifest_forma
         file=sys.stderr,
     )
 
-TRASH = MUSIC_ROOT / ".trash"
-BACKUP = MUSIC_ROOT / ".backups"
+TRASH = MUSIC_ROOT / ".trash_bin"
+BACKUP = MUSIC_ROOT / ".backup_bin"
 LOG = MUSIC_ROOT / ".log.txt"
 
 AUDIO_EXT = ".m4a"

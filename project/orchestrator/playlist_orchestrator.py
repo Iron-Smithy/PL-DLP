@@ -119,9 +119,9 @@ def cmd_list_playlist(playlist_name: str) -> None:
 
     manifest_path = storage.separate_manifest_paths(playlist_dir)[0]
     playlist_data = manifest.load_manifest(manifest_path)
-    songs = playlist_data.get("songs", [])
+    songs = playlist_data.get("songs", playlist_data.get("tracks", []))
     music_paths = storage.separate_music_paths(playlist_dir)[0]
-    downloaded_files = {path.name: path for path in music_paths}
+    downloaded_files = {os.path.normcase(path.name): path for path in music_paths}
 
     titles = []
     downloaded = []
@@ -132,10 +132,10 @@ def cmd_list_playlist(playlist_name: str) -> None:
         safe_title = exporter.sanitize_filename(title)
         file_path = next(
             (
-                downloaded_files[f"{name}{extension}"]
+                downloaded_files[os.path.normcase(f"{name}{extension}")]
                 for name in dict.fromkeys((safe_title, title))
                 for extension in (config.AUDIO_EXT, config.VIDEO_EXT)
-                if f"{name}{extension}" in downloaded_files
+                if os.path.normcase(f"{name}{extension}") in downloaded_files
             ),
             None,
         )
@@ -224,6 +224,7 @@ def cmd_remove_playlist(playlist_name: str) -> None:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         target_path = config.TRASH / f"{playlist_name}_{timestamp}"
         try:
+            config.TRASH.mkdir(parents=True, exist_ok=True)
             storage.move(str(playlist_dir), target_path)
         except OSError as error:
             ui.CONSOLE.print(f"[red]Could not move to trash:[/] {error}")
