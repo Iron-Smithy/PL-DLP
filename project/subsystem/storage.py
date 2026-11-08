@@ -2,11 +2,12 @@ import os
 from mutagen.mp4 import MP4
 from pathlib import Path
 import shutil
-import tempfile
 import stat
 import time
 from datetime import datetime
+from pathlib import PurePosixPath
 from typing import Optional, Union
+import zipfile
 
 def find_playlist_directories(base_music_dir: Path) -> list[Path]:
     """
@@ -115,28 +116,86 @@ def separate_manifest_paths(playlist_directories: Union[Path, list[Path]]) -> li
             
     return manifests
 
-def backup_manifests(manifest_paths: list[Path], backup_folder_path: Path):
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_zip_path = backup_folder_path / timestamp
+def find_all_manifest_paths(base_music_dir: Path) -> list[Path]:
+    """Find all supported manifest files directly inside playlist directories."""
+    return sorted(
+        (
+            path
+            for playlist_dir in find_playlist_directories(base_music_dir)
+            for path in playlist_dir.iterdir()
+            if path.is_file() and path.suffix.lower() in MANIFEST_EXTENSIONS
+        ),
+        key=lambda path: path.as_posix().casefold(),
+    )
 
-    # Create a temporary directory that deletes itself when done
-    with tempfile.TemporaryDirectory() as temp_dir:
-        temp_dir_path = Path(temp_dir)
-        
-        # Gather and copy files into the temporary directory
-        for src_path in manifest_paths:
-            if src_path.exists():
-                # Using src.name ensures the file keeps its original name in the ZIP
-                dest = temp_dir_path / src_path.name
-                
-                # Handle potential name collisions (e.g., two different 'data.json' files)
-                if dest.exists():
-                    dest = temp_dir_path / f"{src_path.stem}_{src_path.parent.name}{src_path.suffix}"
-                    
-                shutil.copy2(src_path, dest)
-                
-        # Zip the temporary directory into final archive
-        shutil.make_archive(output_zip_path, 'zip', temp_dir)
+def backup_manifests(
+    manifest_paths: list[Path], base_music_dir: Path, backup_folder_path: Path
+) -> Path:
+    """Create a ZIP backup of manifests while preserving their playlist paths."""
+    backup_folder_path.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    archive_path = backup_folder_path / f"{timestamp}.zip"
+
+    with zipfile.ZipFile(archive_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        for manifest_path in manifest_paths:
+            archive.write(
+                manifest_path,
+                arcname=manifest_path.relative_to(base_music_dir).as_posix(),
+            )
+    return archive_path
+
+def read_manifest_backup(backup_file: Path) -> list[tuple[Path, bytes]]:
+    """Read and validate manifest files from a backup archive."""
+    restored_files: list[tuple[Path, bytes]] = []
+    seen_paths: set[Path] = set()
+
+    with zipfile.ZipFile(backup_file, "r") as archive:
+        for member in archive.infolist():
+            if member.is_dir():
+                continue
+
+            archive_path = PurePosixPath(member.filename)
+            if archive_path.suffix.lower() not in MANIFEST_EXTENSIONS:
+                continue
+            if (
+                archive_path.is_absolute()
+                or "\\" in member.filename
+                or ".." in archive_path.parts
+                or len(archive_path.parts) != 2
+                or not archive_path.parts[0].startswith("pl-")
+                or archive_path.parts[0] == "pl-"
+            ):
+                raise ValueError(
+                    f"Invalid manifest path in backup archive: {member.filename}"
+                )
+
+            relative_path = Path(*archive_path.parts)
+            if relative_path in seen_paths:
+                raise ValueError(
+                    f"Duplicate manifest path in backup archive: {member.filename}"
+                )
+            seen_paths.add(relative_path)
+            restored_files.append((relative_path, archive.read(member)))
+
+    if not restored_files:
+        raise ValueError("The backup archive contains no playlist manifests.")
+    return restored_files
+
+def restore_manifests(
+    restored_files: list[tuple[Path, bytes]], base_music_dir: Path
+) -> None:
+    """Write validated backup contents to their corresponding playlist paths."""
+    for relative_path, _ in restored_files:
+        destination = base_music_dir / relative_path
+        if destination.parent.is_symlink() or destination.is_symlink():
+            raise ValueError(f"Cannot restore through a symbolic link: {destination}")
+        if destination.exists() and not destination.is_file():
+            raise ValueError(f"Cannot restore over a non-file path: {destination}")
+
+    for relative_path, contents in restored_files:
+        destination = base_music_dir / relative_path
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(contents)
 
 def get_media_duration(file_path: str) -> str:
     """
