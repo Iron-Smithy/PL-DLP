@@ -8,7 +8,6 @@ import time
 from datetime import datetime
 from typing import Optional, Union
 
-
 def find_playlist_directories(base_music_dir: Path) -> list[Path]:
     """
     Scans base_music_dir for folders starting with 'pl-'.

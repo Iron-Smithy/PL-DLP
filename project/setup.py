@@ -138,7 +138,7 @@ def main():
                 print(f"  Missing Packages: {', '.join(missing_pip_packages)}")
 
     # Global Command Setup
-    print("\nCreating Global Executable Launcher ***REMOVED***")
+    print("\nCreating Global Executable Launcher")
     main_script = project_root / "main.py"
 
     if os.name == "nt":  # Windows Wrapper

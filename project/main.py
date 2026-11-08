@@ -1,12 +1,11 @@
 __author__ = "Iron Smithy"
-__version__ = "0.2.3"
+__version__ = "0.2.4"
 
 import sys  # Built-in module
 import update_code
 
 if __name__ == "__main__" and sys.argv[1:2] == ["update-self"]:
     raise SystemExit(0 if update_code.update_application() else 1)
-
 
 module_to_pip = {
     "yt_dlp": "yt-dlp",
@@ -37,6 +36,7 @@ import orchestrator.playlist_orchestrator as playlist_orchestrator
 import orchestrator.export_orchestrator as export_orchestrator
 import orchestrator.import_orchestrator as import_orchestrator
 import orchestrator.update_orchestrator as update_orchestrator
+import orchestrator.backup_orchestrator as backup_orchestrator
 
 def create_parser() -> argparse.ArgumentParser:
     """Creates and configures the CLI argument parser."""
@@ -193,6 +193,15 @@ def create_parser() -> argparse.ArgumentParser:
         help="'self' for the program folder, or a playlist name",
     )
 
+    subparsers.add_parser(
+        "backup", help="Back up all playlist manifests to a ZIP archive"
+    )
+
+    restore_parser = subparsers.add_parser(
+        "restore", help="Restore playlist manifests from a backup ZIP archive"
+    )
+    restore_parser.add_argument("backup_file", help="Path to a manifest backup ZIP file")
+
     return parser
 
 def main() -> int:
@@ -258,6 +267,12 @@ def main() -> int:
 
     elif args.command == "open":
         playlist_orchestrator.cmd_open(args.target)
+
+    elif args.command == "backup":
+        backup_orchestrator.cmd_backup()
+
+    elif args.command == "restore":
+        backup_orchestrator.cmd_restore(args.backup_file)
 
     elif args.command in ["update", "sync", "up"]:
         update_opts = vars(args).copy()

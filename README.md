@@ -5,21 +5,15 @@
 
 `pl-dlp` is a CLI music and playlist manager built on top of `yt-dlp` and `mutagen`. It allows you to organize tracks in JSON or YAML playlist manifests, sync media files based on those manifests, write metadata directly into M4A files, and export playlists as MP3 intended for older hardware. The application configuration remains JSON.
 
-***REMOVED***
-
 ## Key Components
 
 * **JSON and YAML playlist manifests:** songs and download metadata can be stored in JSON (`.json`) or YAML (`.yaml`/`.yml`) files. Existing manifests retain their original format when updated.
 
-
 * **Multi-Threaded Downloader:** Parallel downloading and processing engine displayed with `rich` progress bars.
-
 
 * **Embedded Metadata:** Native M4A/MP4 tagging using `mutagen`, including embedded thumbnail cover art.
 
-
 * **Exporter:** Export playlists into standard formats (`mp3`, `m4a`, `flac`, `wav`), have the option to strip video channels, re-size artwork, or package them directly into ZIP archives.
-
 
 * **MP3 Player Support:** Exporting using `--legacy-mp3` mode to strip unsafe ASCII characters, removing video streams, and embedding ID3v2.3 cover art.
 
@@ -31,12 +25,6 @@ The [`musicDir` examples](./musicDir) include both supported manifest formats:
 * [`otherplaylist.yaml`](./musicDir/pl-otherplaylist/otherplaylist.yaml) shows the same manifest structure in YAML, including one video track and a track whose title and artist are protected from metadata updates.
 
 `download_video_all: true` forces video downloads for every track in that playlist. Otherwise, set `download_video: true` only on tracks that should download as video. `status` is managed by the sync process; use `active` for tracks ready to sync.
-
-***REMOVED***
-
-
-
-***REMOVED***
 
 ## Installation
 
@@ -53,7 +41,6 @@ Run `install.sh` with standard permissions. It will attempt to detect your syste
 chmod +x install.sh
 ./install.sh
 ```
-
 #### **On Windows:**
 
 Run `installer.ps1` via PowerShell. It verifies Python 3.10+ installation (offering to install Python 3.12 via `winget` if missing), copies project files, and appends `pl-dlp` to your User `PATH` environment variable.
@@ -62,8 +49,6 @@ Run `installer.ps1` via PowerShell. It verifies Python 3.10+ installation (offer
 Set-ExecutionPolicy -Scope Process Bypass
 .\install.ps1
 ```
-
-***REMOVED***
 
 ### Manual Installation
 
@@ -113,7 +98,6 @@ Create a file named `config.json` inside your project directory to define where 
 
 * **Linux:** Create a wrapper script in `/usr/local/bin/pl-dlp`:
 
-
 ```bash
 sudo bash -c 'cat <<EOF> /usr/local/bin/pl-dlp
 #!/bin/sh
@@ -123,9 +107,7 @@ sudo chmod +x /usr/local/bin/pl-dlp
 
 ```
 
-
 * **Windows:** Create a file named `pl-dlp.cmd` in your project folder:
-
 
 ```cmd
 @echo off
@@ -133,10 +115,7 @@ python "C:\path\to\your\pl-dlp\main.py" %*
 
 ```
 
-
 Then manually add the project folder to your User Environment `PATH`.
-
-***REMOVED***
 
 ## CLI Command Overview & Examples
 
@@ -256,7 +235,19 @@ pl-dlp clear-fail pl-rock --all
 
 ```
 
-***REMOVED***
+### 9. `backup` and `restore` — Back Up or Restore Manifests
+
+Create a ZIP archive containing every JSON/YAML playlist manifest, or restore
+those files from an archive. Backups are saved under `.backups` in the configured
+music root. Restoring asks for confirmation if any manifest will be overwritten.
+
+```bash
+# Create a timestamped backup
+pl-dlp backup
+
+# Restore manifests from a backup archive
+pl-dlp restore ~/Music/pl-dlp/.backups/20261107_193000_000000.zip
+```
 
 ## Troubleshooting & Built-in Help
 
