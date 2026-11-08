@@ -149,6 +149,11 @@ def create_parser() -> argparse.ArgumentParser:
     update_parser.add_argument("--meta-only", action="store_true", help="Only process manifest metadata; do not download audio/video files")
     update_parser.add_argument("--no-thumb", action="store_true", help="Skip embedding thumbnails/artwork into downloaded files")
     update_parser.add_argument("--retry-dead", action="store_true", help="Ignore 'dead link' flags in manifests and retry fetching them anyway")
+    update_parser.add_argument(
+        "--verify-total-tracks",
+        action="store_true",
+        help="Check and correct each selected manifest's total_tracks count without syncing media",
+    )
 
     # Network & Engine Behavior
     update_parser.add_argument("--offline", action="store_true", help="Do not download or fetch anything online")

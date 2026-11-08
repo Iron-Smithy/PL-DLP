@@ -281,6 +281,32 @@ def _process_playlist_sync(
     ui.render_sync_summary(stats, len(tasks), playlist_dir.name)
     return stats
 
+def _verify_manifest_track_count(manifest_path: Path) -> bool:
+    manifest_data = manifest.load_manifest(manifest_path)
+    songs = manifest_data.get("songs", manifest_data.get("tracks", []))
+    if not isinstance(songs, list):
+        raise ValueError(
+            f"Track entries in {manifest_path} must be stored as a list."
+        )
+
+    actual_count = len(songs)
+    recorded_count = manifest_data.get("total_tracks")
+    if recorded_count == actual_count:
+        ui.CONSOLE.print(
+            f"[green]{manifest_path.parent.name}: total_tracks is correct "
+            f"({actual_count}).[/]"
+        )
+        return False
+
+    manifest_data["total_tracks"] = actual_count
+    manifest.write_manifest(manifest_path, manifest_data)
+    ui.CONSOLE.print(
+        f"[yellow]{manifest_path.parent.name}: corrected total_tracks from "
+        f"{recorded_count!r} to {actual_count} manifest entries "
+        f"(including dead links).[/]"
+    )
+    return True
+
 def cmd_update_playlist(
     playlist_name: str | None,
     meta_only: bool,
@@ -288,6 +314,7 @@ def cmd_update_playlist(
     retry_dead: bool,
     offline: bool,
     concurrency: int | None = None,
+    verify_total_tracks: bool = False,
 ) -> None:
     """Synchronize one playlist or every playlist in the configured library."""
     flags = {
@@ -315,6 +342,17 @@ def cmd_update_playlist(
         ui.CONSOLE.print("[bold green]No playlists found to update.[/]")
         return
 
+    if verify_total_tracks:
+        for playlist_dir in playlist_dirs:
+            manifest_paths = storage.separate_manifest_paths([playlist_dir])
+            if not manifest_paths:
+                ui.CONSOLE.print(
+                    f"[red]Error: Missing manifest in {playlist_dir.name}[/]"
+                )
+                continue
+            _verify_manifest_track_count(manifest_paths[0])
+        return
+
     total_stats = {"dl": 0, "meta": 0, "fail": 0, "skip": 0}
     for playlist_dir in playlist_dirs:
         ui.CONSOLE.print(f"[bold blue]Updating playlist:[/] {playlist_dir.name}")
@@ -336,6 +374,7 @@ def cmd_update_all(
     retry_dead: bool,
     offline: bool,
     concurrency: int | None = None,
+    verify_total_tracks: bool = False,
 ) -> None:
     """Synchronize all playlists using the supplied update options."""
     cmd_update_playlist(
@@ -345,4 +384,5 @@ def cmd_update_all(
         retry_dead=retry_dead,
         offline=offline,
         concurrency=concurrency,
+        verify_total_tracks=verify_total_tracks,
     )

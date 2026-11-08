@@ -91,7 +91,6 @@ Create a file named `config.json` inside your project directory to define where 
     "project_root": "/path/to/your/pl-dlp",
     "manifest_format": "json"
 }
-
 ```
 
 #### 5. Make `pl-dlp` Globally Accessible (Optional)
@@ -104,7 +103,6 @@ sudo bash -c 'cat <<EOF> /usr/local/bin/pl-dlp
 exec python3 "/path/to/your/pl-dlp/main.py" "\$@"
 EOF'
 sudo chmod +x /usr/local/bin/pl-dlp
-
 ```
 
 * **Windows:** Create a file named `pl-dlp.cmd` in your project folder:
@@ -112,7 +110,6 @@ sudo chmod +x /usr/local/bin/pl-dlp
 ```cmd
 @echo off
 python "C:\path\to\your\pl-dlp\main.py" %*
-
 ```
 
 Then manually add the project folder to your User Environment `PATH`.
@@ -129,7 +126,6 @@ pl-dlp ls
 
 # Show individual tracks and download statuses for a playlist
 pl-dlp ls pl-rock
-
 ```
 
 ### 2. `import` — Ingest Playlists or Links
@@ -148,7 +144,6 @@ pl-dlp import "https://www.youtube.com/playlist?list=..." my-playlist --manifest
 
 # Parse a local text file containing YouTube links
 pl-dlp import links.txt custom-playlist
-
 ```
 
 ### 3. `add` — Append Links to an Existing Playlist
@@ -157,7 +152,6 @@ Append single or multiple YouTube track URLs (or a file of URLs) to an existing 
 
 ```bash
 pl-dlp add pl-rock "https://www.youtube.com/watch?v=XXXXXX"
-
 ```
 
 ### 4. `update` — Synchronize Local Tracks & Metadata
@@ -166,7 +160,6 @@ Runs the sync engine to download missing media files and apply embedded metadata
 Media files not represented by the manifest, and playlists removed with the CLI,
 are moved to `.trash_bin` rather than deleted. The trash and backup folders are
 created as needed.
-
 ```bash
 # Sync all existing playlists using 4 concurrent workers
 pl-dlp update -j 4
@@ -180,6 +173,9 @@ pl-dlp update pl-rock --meta-only
 # Force retry fetching tracks previously marked as "DEAD"
 pl-dlp update pl-rock --retry-dead
 
+# Verify and correct total_tracks from manifest entries, without syncing media
+pl-dlp update --verify-total-tracks
+pl-dlp update pl-rock --verify-total-tracks
 ```
 
 ### 5. `config` — View or Set Preferences
@@ -222,7 +218,6 @@ pl-dlp export pl-rock -o ~/Desktop/OldPlayer --legacy-mp3
 
 # Export and compress directly into a ZIP file
 pl-dlp export pl-rock -o ./out --zip
-
 ```
 
 ### 8. `clear-fail` — Reset Error States
@@ -235,7 +230,6 @@ pl-dlp clear-fail pl-rock "Song Title"
 
 # Reset all failed tracks inside a playlist
 pl-dlp clear-fail pl-rock --all
-
 ```
 
 ### 9. `backup` and `restore` — Back Up or Restore Manifests
@@ -260,7 +254,6 @@ The built-in argparse help menus can be accessed on any command by passing `-h` 
 pl-dlp --help
 pl-dlp update --help
 pl-dlp export --help
-
 ```
 
 ## Updating pl-dlp
