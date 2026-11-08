@@ -1,12 +1,11 @@
 __author__ = "Iron Smithy"
-__version__ = "0.2.3"
+__version__ = "0.2.4"
 
 import sys  # Built-in module
 import update_code
 
 if __name__ == "__main__" and sys.argv[1:2] == ["update-self"]:
     raise SystemExit(0 if update_code.update_application() else 1)
-
 
 module_to_pip = {
     "yt_dlp": "yt-dlp",

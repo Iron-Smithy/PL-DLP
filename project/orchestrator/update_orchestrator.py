@@ -15,7 +15,6 @@ import subsystem.metadata as metadata
 import subsystem.storage as storage
 import subsystem.ui as ui
 
-
 @dataclass
 class SyncTask:
     song: dict
@@ -24,7 +23,6 @@ class SyncTask:
     action: str
     playlist_name: str
 
-
 def ensure_extension(path: Path, extension: str) -> Path:
     extension = extension if extension.startswith(".") else f".{extension}"
     if path.suffix.lower() == extension.lower():
@@ -32,7 +30,6 @@ def ensure_extension(path: Path, extension: str) -> Path:
     if path.suffix:
         return path.with_suffix(extension)
     return Path(str(path) + extension)
-
 
 def _execute_sync_task(
     task: SyncTask,
@@ -129,7 +126,6 @@ def _execute_sync_task(
 
     return "skip"
 
-
 def _build_sync_tasks(
     playlist_dir: Path,
     songs: list[dict],
@@ -161,7 +157,6 @@ def _build_sync_tasks(
         )
     return tasks, songs_on_disk
 
-
 def _move_orphaned_files(orphaned_files: dict[str, Path]) -> None:
     for orphan in orphaned_files.values():
         try:
@@ -171,7 +166,6 @@ def _move_orphaned_files(orphaned_files: dict[str, Path]) -> None:
             )
         except OSError:
             pass
-
 
 def _process_playlist_sync(
     playlist_dir: Path, flags: dict, concurrency: int | None = None
@@ -261,7 +255,6 @@ def _process_playlist_sync(
     ui.render_sync_summary(stats, len(tasks), playlist_dir.name)
     return stats
 
-
 def cmd_update_playlist(
     playlist_name: str | None,
     meta_only: bool,
@@ -310,7 +303,6 @@ def cmd_update_playlist(
         f"Skipped: [blue]{total_stats['skip']}[/] | "
         f"Failures: [red]{total_stats['fail']}[/]"
     )
-
 
 def cmd_update_all(
     meta_only: bool,

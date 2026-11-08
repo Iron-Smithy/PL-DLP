@@ -7,7 +7,6 @@ import command_utility as command_utility
 import subsystem.storage as storage
 import subsystem.ui as ui
 
-
 def add_songs(playlist_name: str, sources: list[str]) -> None:
     """Fetch metadata for source URLs and append tracks to an existing playlist."""
     clean_playlist_name = storage.clean_playlist_name(playlist_name)
@@ -36,7 +35,6 @@ def add_songs(playlist_name: str, sources: list[str]) -> None:
             ui.CONSOLE.print(f"[green]Added:[/] {song_data.get('title', 'Unknown')}")
         except Exception as error:
             ui.CONSOLE.print(f"[red]Failed to add {url}: {error}[/]")
-
 
 def import_playlist(
     source: str,

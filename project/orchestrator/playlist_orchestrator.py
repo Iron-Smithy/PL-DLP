@@ -13,7 +13,6 @@ import subsystem.manifest as manifest
 import subsystem.storage as storage
 import subsystem.ui as ui
 
-
 def cmd_config_manifest_format(manifest_format: str | None = None) -> None:
     try:
         user_config = config.read_user_config(config.CONFIG_FILE)
@@ -39,7 +38,6 @@ def cmd_config_manifest_format(manifest_format: str | None = None) -> None:
 
     config.MANIFEST_FORMAT = chosen_format
     ui.CONSOLE.print(f"[green]Preferred manifest format set to {chosen_format}.[/]")
-
 
 def cmd_open(target: str) -> None:
     if target.casefold() == "self":
@@ -73,7 +71,6 @@ def cmd_open(target: str) -> None:
 
     ui.CONSOLE.print(f"[green]Opened folder: {folder}[/]")
 
-
 def _open_folder_with_command(command: list[str]) -> None:
     result = subprocess.run(
         command, capture_output=True, text=True, timeout=15
@@ -82,7 +79,6 @@ def _open_folder_with_command(command: list[str]) -> None:
         raise OSError(
             result.stderr.strip() or "The system folder opener failed."
         )
-
 
 def cmd_list_all() -> None:
     playlist_dirs = storage.find_playlist_directories(config.MUSIC_ROOT)
@@ -109,7 +105,6 @@ def cmd_list_all() -> None:
         total_sizes.append(storage.get_directory_size(music_paths))
 
     ui.list_all(names, track_counts, downloaded_track_counts, total_sizes)
-
 
 def cmd_list_playlist(playlist_name: str) -> None:
     clean_playlist_name = storage.clean_playlist_name(playlist_name)
@@ -158,7 +153,6 @@ def cmd_list_playlist(playlist_name: str) -> None:
         sizes.append(size)
 
     ui.list_one(clean_playlist_name, titles, downloaded, lengths, sizes)
-
 
 def cmd_new_playlist(
     playlist_name: str, manifest_format: str | None = None
@@ -215,7 +209,6 @@ def cmd_new_playlist(
         f"[green]Created empty playlist: {clean_playlist_name}[/]"
     )
 
-
 def cmd_remove_playlist(playlist_name: str) -> None:
     playlist_name = playlist_name.strip()
     playlist_dir = storage.find_playlist_directory(
@@ -236,7 +229,6 @@ def cmd_remove_playlist(playlist_name: str) -> None:
             ui.CONSOLE.print(f"[red]Could not move to trash:[/] {error}")
             return
         ui.CONSOLE.print(f"[yellow]{playlist_name} moved to {config.TRASH}[/]")
-
 
 def cmd_rename_playlist(old_name: str, new_name: str) -> None:
     clean_old_name = storage.clean_playlist_name(old_name)
@@ -262,7 +254,6 @@ def cmd_rename_playlist(old_name: str, new_name: str) -> None:
     ui.CONSOLE.print(
         f"[green]Successfully renamed {clean_old_name} to {clean_new_name}[/]"
     )
-
 
 def cmd_clear_fail(
     playlist_name: str,
@@ -325,7 +316,6 @@ def cmd_clear_fail(
         "[green]Successfully reset failure status for "
         f"{len(songs_to_clear)} track(s).[/]"
     )
-
 
 def _select_song_match(song_name: str, matches: list[dict]) -> dict:
     ui.CONSOLE.print(f"[yellow]Multiple songs named '{song_name}' found:[/]")

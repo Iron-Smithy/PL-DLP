@@ -8,7 +8,6 @@ import subsystem.metadata as metadata
 import subsystem.storage as storage
 import subsystem.ui as ui
 
-
 def export_playlist(
     playlist_name: str,
     output_dir: str | Path,
@@ -126,7 +125,6 @@ def export_playlist(
         return
 
     ui.CONSOLE.print(f"[green]Export complete at:[/] {export_dir}")
-
 
 def _find_source_media(
     playlist_dir: Path, safe_name: str, stored_name: str, title: str
