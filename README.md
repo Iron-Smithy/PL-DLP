@@ -193,11 +193,16 @@ pl-dlp config json
 
 ### 6. `open` — Open a Folder in the File Manager
 
-Open the installed source folder or a playlist folder using the operating system's standard graphical folder opener.
+Open the installed source folder, configured music root, backup bin, trash bin, or a playlist folder using the operating system's standard graphical folder opener. The music root and bins are created if they do not exist.
 
 ```bash
 # Open the pl-dlp source folder
 pl-dlp open self
+
+# Open the configured music root or its bins
+pl-dlp open music
+pl-dlp open backup
+pl-dlp open trash
 
 # Open a playlist folder
 pl-dlp open my-playlist

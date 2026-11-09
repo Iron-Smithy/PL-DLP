@@ -1,5 +1,5 @@
 __author__ = "Iron Smithy"
-__version__ = "0.2.4"
+__version__ = "0.2.5"
 
 import sys  # Built-in module
 import update_code
@@ -191,11 +191,13 @@ def create_parser() -> argparse.ArgumentParser:
     )
 
     open_parser = subparsers.add_parser(
-        "open", help="Open the program or a playlist folder in the file manager"
+        "open",
+        help="Open the program source code, music, backup, trash, or playlist folder in the file manager",
     )
     open_parser.add_argument(
         "target",
-        help="'self' for the program folder, or a playlist name",
+        help="'self', 'music'/'music-root', 'backup'/'backup-bin', "
+        "'trash'/'trash-bin', or a playlist name",
     )
 
     subparsers.add_parser(

@@ -40,8 +40,25 @@ def cmd_config_manifest_format(manifest_format: str | None = None) -> None:
     ui.CONSOLE.print(f"[green]Preferred manifest format set to {chosen_format}.[/]")
 
 def cmd_open(target: str) -> None:
-    if target.casefold() == "self":
+    normalized_target = target.strip().casefold()
+    special_folders = {
+        "music": config.MUSIC_ROOT,
+        "music-root": config.MUSIC_ROOT,
+        "backup": config.BACKUP,
+        "backup-bin": config.BACKUP,
+        "trash": config.TRASH,
+        "trash-bin": config.TRASH,
+    }
+
+    if normalized_target == "self":
         folder = config.PROGRAM_ROOT
+    elif normalized_target in special_folders:
+        folder = special_folders[normalized_target]
+        try:
+            folder.mkdir(parents=True, exist_ok=True)
+        except OSError as error:
+            ui.CONSOLE.print(f"[red]Could not create folder '{folder}': {error}[/]")
+            return
     else:
         folder = storage.find_playlist_directory(config.MUSIC_ROOT, target)
         if folder is None:
