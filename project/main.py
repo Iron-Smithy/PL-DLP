@@ -99,7 +99,7 @@ def create_parser() -> argparse.ArgumentParser:
 
     # 'mv' command
     mv_parser = subparsers.add_parser(
-        "mv", aliases=["rename", "move"], help="Rename a playlist folder"
+        "mv", aliases=["rename", "move"], help="Rename a playlist and its manifest"
     )
     mv_parser.add_argument("old_name", help="Current playlist name")
     mv_parser.add_argument("new_name", help="New playlist name")

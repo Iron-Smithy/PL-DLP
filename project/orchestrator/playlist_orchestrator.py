@@ -263,9 +263,43 @@ def cmd_rename_playlist(old_name: str, new_name: str) -> None:
         )
         return
 
+    manifest_paths = storage.separate_manifest_paths(old_path)
+    manifest_path = manifest_paths[0] if manifest_paths else None
+    renamed_manifest_path = None
+    manifest_renamed = False
+    if manifest_path is not None:
+        renamed_manifest_path = manifest_path.with_name(
+            f"{storage.clean_json_name(clean_new_name)}{manifest_path.suffix}"
+        )
+        if (
+            renamed_manifest_path != manifest_path
+            and renamed_manifest_path.exists()
+        ):
+            ui.CONSOLE.print(
+                f"[red]Rename failed: Manifest already exists at "
+                f"'{renamed_manifest_path}'.[/]"
+            )
+            return
+
     try:
+        if manifest_path is not None and renamed_manifest_path != manifest_path:
+            storage.move(manifest_path, renamed_manifest_path)
+            manifest_renamed = True
         storage.move(old_path, new_path)
     except OSError as error:
+        if (
+            manifest_renamed
+            and manifest_path is not None
+            and renamed_manifest_path is not None
+        ):
+            try:
+                storage.move(renamed_manifest_path, manifest_path)
+            except OSError as rollback_error:
+                ui.CONSOLE.print(
+                    f"[red]Rename failed: {error}. Could not restore manifest "
+                    f"'{manifest_path}': {rollback_error}[/]"
+                )
+                return
         ui.CONSOLE.print(f"[red]Rename failed:[/] {error}")
         return
 
